@@ -1,62 +1,102 @@
-from __future__ import annotations
+"""
+Telegram Bot Ana Dosyası
+Bu dosya botun giriş noktasıdır.
+"""
 
 import asyncio
 import logging
-
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
-from config import settings
-from handlers import user_router, group_router
-from admin_panel import admin_router
-from services.supabase_client import SupabaseClient
+from config import Config
+from handlers.user_handlers import router as user_router
+from handlers.admin_handlers import router as admin_router
+from handlers.group_handlers import router as group_router
+from services.database import DatabaseService
 from services.group_service import GroupService
 
+# Logging ayarları
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+async def set_commands(bot: Bot):
+    """Bot komutlarını ayarlar"""
+    commands = [
+        BotCommand(command="start", description="Botu başlat"),
+        BotCommand(command="admin", description="Admin paneli"),
+        BotCommand(command="help", description="Yardım"),
+    ]
+    await bot.set_my_commands(commands)
 
+async def on_startup(bot: Bot):
+    """Bot başlatıldığında çalışır"""
+    logger.info("Bot başlatılıyor...")
+    
+    # Konfigürasyonu doğrula
+    try:
+        Config.validate_config()
+        logger.info("Konfigürasyon doğrulandı.")
+    except ValueError as e:
+        logger.error(f"Konfigürasyon hatası: {e}")
+        return
+    
+    # Komutları ayarla
+    await set_commands(bot)
+    
+    # Veritabanı bağlantısını test et
+    try:
+        db = DatabaseService()
+        # Test sorgusu
+        questions = await db.get_questions()
+        logger.info(f"Veritabanı bağlantısı başarılı. {len(questions)} soru bulundu.")
+    except Exception as e:
+        logger.error(f"Veritabanı bağlantı hatası: {e}")
+        return
+    
+    logger.info("Bot başarıyla başlatıldı!")
 
-async def main() -> None:
-    # Bot ve Dispatcher
-    bot = Bot(token=settings.bot_token, default=DefaultBotProperties(parse_mode="HTML"))
-    dp = Dispatcher(storage=MemoryStorage())
+async def on_shutdown(bot: Bot):
+    """Bot kapatıldığında çalışır"""
+    logger.info("Bot kapatılıyor...")
 
-    # Services (simple DI)
-    supa = SupabaseClient()
-    groups = GroupService(bot)
-
-    # Middlewares: supply services via context
-    dp.update.outer_middleware(ServiceMiddleware(supa=supa, groups=groups))
-
-    # Routers
-    dp.include_routers(user_router, admin_router, group_router)
-
-    # Start polling
-    logging.info("Bot started. Make sure the bot is admin in your target group.")
-    await dp.start_polling(bot)
-
-
-class ServiceMiddleware:
-    """Basit servis enjeksiyonu için middleware.
-
-    Handler fonksiyonlarında parametre ismiyle (supa, groups) servislere erişim sağlanır.
-    """
-
-    def __init__(self, supa: SupabaseClient, groups: GroupService) -> None:
-        self.supa = supa
-        self.groups = groups
-
-    async def __call__(self, handler, event, data):
-        data["supa"] = self.supa
-        data["groups"] = self.groups
-        return await handler(event, data)
-
+async def main():
+    """Ana fonksiyon"""
+    # Bot ve dispatcher oluştur
+    bot = Bot(token=Config.BOT_TOKEN)
+    
+    # Storage seçimi (Redis varsa Redis, yoksa Memory)
+    try:
+        from aiogram.fsm.storage.redis import RedisStorage2
+        storage = RedisStorage2.from_url("redis://localhost:6379/0")
+        logger.info("Redis storage kullanılıyor.")
+    except ImportError:
+        storage = MemoryStorage()
+        logger.info("Memory storage kullanılıyor.")
+    
+    dp = Dispatcher(storage=storage)
+    
+    # Router'ları ekle
+    dp.include_router(user_router)
+    dp.include_router(admin_router)
+    dp.include_router(group_router)
+    
+    # Startup ve shutdown event'lerini ekle
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+    
+    # Bot'u başlat
+    try:
+        await dp.start_polling(bot)
+    except KeyboardInterrupt:
+        logger.info("Bot durduruldu.")
+    except Exception as e:
+        logger.error(f"Bot çalışırken hata oluştu: {e}")
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logging.info("Bot stopped.")
-
-
+    asyncio.run(main())

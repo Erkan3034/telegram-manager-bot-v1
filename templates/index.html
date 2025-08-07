@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Manager Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .hero-section {
+            padding: 100px 0;
+            color: white;
+            text-align: center;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="hero-section">
+            <h1 class="display-4 fw-bold mb-4">
+                <i class="fab fa-telegram"></i> Telegram Manager Bot
+            </h1>
+            <p class="lead mb-5">
+                Instagram üzerinden gelen kullanıcıları karşılayan, tanıtım yapan ve özel gruplara ekleyen akıllı bot
+            </p>
+            <a href="/admin" class="btn btn-primary btn-lg">
+                <i class="fas fa-cog"></i> Admin Paneli
+            </a>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="feature-card text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4>Kullanıcı Yönetimi</h4>
+                    <p>Kullanıcıları karşıla, sorular sor ve bilgilerini topla</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <h4>Ödeme Sistemi</h4>
+                    <p>Shopier entegrasyonu ile güvenli ödeme al</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4>Grup Yönetimi</h4>
+                    <p>Otomatik grup daveti ve yasaklı kelime kontrolü</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="feature-card">
+                    <h4><i class="fas fa-chart-bar"></i> İstatistikler</h4>
+                    <div id="stats">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 id="total-users">-</h3>
+                                <p>Toplam Kullanıcı</p>
+                            </div>
+                            <div class="col-6">
+                                <h3 id="total-payments">-</h3>
+                                <p>Toplam Ödeme</p>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 id="pending-payments">-</h3>
+                                <p>Bekleyen Ödeme</p>
+                            </div>
+                            <div class="col-6">
+                                <h3 id="total-members">-</h3>
+                                <p>Grup Üyesi</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="feature-card">
+                    <h4><i class="fas fa-cogs"></i> Özellikler</h4>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Hoş geldin mesajı</li>
+                        <li><i class="fas fa-check text-success"></i> Etkileşimli soru-cevap</li>
+                        <li><i class="fas fa-check text-success"></i> Ödeme entegrasyonu</li>
+                        <li><i class="fas fa-check text-success"></i> Dekont yükleme</li>
+                        <li><i class="fas fa-check text-success"></i> Otomatik grup daveti</li>
+                        <li><i class="fas fa-check text-success"></i> Yasaklı kelime kontrolü</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // İstatistikleri yükle
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                document.getElementById('total-users').textContent = data.total_users || 0;
+                document.getElementById('total-payments').textContent = data.total_payments || 0;
+                document.getElementById('pending-payments').textContent = data.pending_payments || 0;
+                document.getElementById('total-members').textContent = data.total_members || 0;
+            } catch (error) {
+                console.error('İstatistikler yüklenirken hata:', error);
+            }
+        }
+
+        // Sayfa yüklendiğinde istatistikleri yükle
+        document.addEventListener('DOMContentLoaded', loadStats);
+    </script>
+</body>
+
+</html>

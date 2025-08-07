@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli - Telegram Manager Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+        }
+        
+        .btn-success {
+            border-radius: 25px;
+        }
+        
+        .btn-danger {
+            border-radius: 25px;
+        }
+        
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="d-flex flex-column p-3">
+                    <h4 class="text-center mb-4">
+                        <i class="fab fa-telegram"></i> Admin Panel
+                    </h4>
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" onclick="showSection('dashboard')">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" onclick="showSection('questions')">
+                                <i class="fas fa-question-circle"></i> Sorular
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" onclick="showSection('payments')">
+                                <i class="fas fa-credit-card"></i> Ödemeler
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" onclick="showSection('members')">
+                                <i class="fas fa-users"></i> Üyeler
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <!-- Dashboard Section -->
+                <div id="dashboard-section">
+                    <h2 class="mb-4">Dashboard</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                    <h4 id="total-users">-</h4>
+                                    <p class="text-muted">Toplam Kullanıcı</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-credit-card fa-3x text-success mb-3"></i>
+                                    <h4 id="total-payments">-</h4>
+                                    <p class="text-muted">Toplam Ödeme</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                                    <h4 id="pending-payments">-</h4>
+                                    <p class="text-muted">Bekleyen Ödeme</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-user-friends fa-3x text-info mb-3"></i>
+                                    <h4 id="total-members">-</h4>
+                                    <p class="text-muted">Grup Üyesi</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Questions Section -->
+                <div id="questions-section" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Sorular</h2>
+                        <button class="btn btn-primary" onclick="showAddQuestionModal()">
+                            <i class="fas fa-plus"></i> Yeni Soru Ekle
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Mevcut Sorular</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="questions-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Section -->
+                <div id="payments-section" style="display: none;">
+                    <h2 class="mb-4">Ödemeler ve Dekontlar</h2>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Bekleyen İşlemler</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="payments-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Members Section -->
+                <div id="members-section" style="display: none;">
+                    <h2 class="mb-4">Grup Üyeleri</h2>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Üye Listesi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="members-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Question Modal -->
+    <div class="modal fade" id="addQuestionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Yeni Soru Ekle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addQuestionForm">
+                        <div class="mb-3">
+                            <label for="questionText" class="form-label">Soru Metni</label>
+                            <textarea class="form-control" id="questionText" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-primary" onclick="addQuestion()">Ekle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Sayfa yüklendiğinde dashboard'u göster
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            loadQuestions();
+        });
+
+        // Bölümleri göster/gizle
+        function showSection(section) {
+            // Tüm bölümleri gizle
+            document.getElementById('dashboard-section').style.display = 'none';
+            document.getElementById('questions-section').style.display = 'none';
+            document.getElementById('payments-section').style.display = 'none';
+            document.getElementById('members-section').style.display = 'none';
+
+            // Seçilen bölümü göster
+            document.getElementById(section + '-section').style.display = 'block';
+
+            // Aktif nav link'i güncelle
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Bölüme göre veri yükle
+            switch (section) {
+                case 'dashboard':
+                    loadStats();
+                    break;
+                case 'questions':
+                    loadQuestions();
+                    break;
+                case 'payments':
+                    loadPayments();
+                    break;
+                case 'members':
+                    loadMembers();
+                    break;
+            }
+        }
+
+        // İstatistikleri yükle
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                document.getElementById('total-users').textContent = data.total_users || 0;
+                document.getElementById('total-payments').textContent = data.total_payments || 0;
+                document.getElementById('pending-payments').textContent = data.pending_payments || 0;
+                document.getElementById('total-members').textContent = data.total_members || 0;
+            } catch (error) {
+                console.error('İstatistikler yüklenirken hata:', error);
+            }
+        }
+
+        // Soruları yükle
+        async function loadQuestions() {
+            try {
+                const response = await fetch('/api/questions');
+                const questions = await response.json();
+
+                const questionsList = document.getElementById('questions-list');
+                if (questions.length === 0) {
+                    questionsList.innerHTML = '<p class="text-center text-muted">Henüz soru eklenmemiş.</p>';
+                    return;
+                }
+
+                let html = '<div class="table-responsive"><table class="table">';
+                html += '<thead><tr><th>Soru</th><th>İşlemler</th></tr></thead><tbody>';
+
+                questions.forEach(question => {
+                    html += `<tr>
+                        <td>${question.question_text}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${question.id})">
+                                <i class="fas fa-trash"></i> Sil
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+                questionsList.innerHTML = html;
+            } catch (error) {
+                console.error('Sorular yüklenirken hata:', error);
+            }
+        }
+
+        // Ödemeleri yükle
+        async function loadPayments() {
+            try {
+                const [paymentsResponse, receiptsResponse] = await Promise.all([
+                    fetch('/api/payments'),
+                    fetch('/api/receipts')
+                ]);
+
+                const payments = await paymentsResponse.json();
+                const receipts = await receiptsResponse.json();
+
+                const paymentsList = document.getElementById('payments-list');
+                let html = '';
+
+                if (payments.length === 0 && receipts.length === 0) {
+                    html = '<p class="text-center text-muted">Bekleyen ödeme veya dekont bulunmuyor.</p>';
+                } else {
+                    html = '<div class="table-responsive"><table class="table">';
+                    html += '<thead><tr><th>Kullanıcı</th><th>Tür</th><th>Detay</th><th>İşlemler</th></tr></thead><tbody>';
+
+                    // Ödemeler
+                    payments.forEach(payment => {
+                        const user = payment.users || {};
+                        html += `<tr>
+                            <td>@${user.username || 'Bilinmeyen'}</td>
+                            <td><span class="badge bg-primary">Ödeme</span></td>
+                            <td>${payment.amount} TL</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="approvePayment(${payment.id})">
+                                    <i class="fas fa-check"></i> Onayla
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectPayment(${payment.id})">
+                                    <i class="fas fa-times"></i> Reddet
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    // Dekontlar
+                    receipts.forEach(receipt => {
+                        const user = receipt.users || {};
+                        html += `<tr>
+                            <td>@${user.username || 'Bilinmeyen'}</td>
+                            <td><span class="badge bg-info">Dekont</span></td>
+                            <td>${receipt.file_name}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="approveReceipt(${receipt.id})">
+                                    <i class="fas fa-check"></i> Onayla
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectReceipt(${receipt.id})">
+                                    <i class="fas fa-times"></i> Reddet
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table></div>';
+                }
+
+                paymentsList.innerHTML = html;
+            } catch (error) {
+                console.error('Ödemeler yüklenirken hata:', error);
+            }
+        }
+
+        // Üyeleri yükle
+        async function loadMembers() {
+            try {
+                const response = await fetch('/api/members');
+                const members = await response.json();
+
+                const membersList = document.getElementById('members-list');
+                if (members.length === 0) {
+                    membersList.innerHTML = '<p class="text-center text-muted">Henüz grup üyesi bulunmuyor.</p>';
+                    return;
+                }
+
+                let html = '<div class="table-responsive"><table class="table">';
+                html += '<thead><tr><th>Kullanıcı</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>';
+
+                members.forEach(member => {
+                    const user = member.users || {};
+                    html += `<tr>
+                        <td>@${user.username || 'Bilinmeyen'}</td>
+                        <td><span class="badge bg-success">Aktif</span></td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="removeMember(${user.user_id})">
+                                <i class="fas fa-user-times"></i> Çıkar
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+                membersList.innerHTML = html;
+            } catch (error) {
+                console.error('Üyeler yüklenirken hata:', error);
+            }
+        }
+
+        // Yeni soru ekleme modal'ını göster
+        function showAddQuestionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
+            modal.show();
+        }
+
+        // Yeni soru ekle
+        async function addQuestion() {
+            const questionText = document.getElementById('questionText').value.trim();
+            if (!questionText) {
+                alert('Lütfen soru metnini girin.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question_text: questionText
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('questionText').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('addQuestionModal')).hide();
+                    loadQuestions();
+                    alert('Soru başarıyla eklendi.');
+                } else {
+                    alert('Soru eklenirken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Soru ekleme hatası:', error);
+                alert('Soru eklenirken hata oluştu.');
+            }
+        }
+
+        // Soru sil
+        async function deleteQuestion(questionId) {
+            if (!confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/questions/${questionId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadQuestions();
+                    alert('Soru başarıyla silindi.');
+                } else {
+                    alert('Soru silinirken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Soru silme hatası:', error);
+                alert('Soru silinirken hata oluştu.');
+            }
+        }
+
+        // Ödeme onayla
+        async function approvePayment(paymentId) {
+            try {
+                const response = await fetch(`/api/payments/${paymentId}/approve`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadPayments();
+                    alert('Ödeme başarıyla onaylandı.');
+                } else {
+                    alert('Ödeme onaylanırken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Ödeme onaylama hatası:', error);
+                alert('Ödeme onaylanırken hata oluştu.');
+            }
+        }
+
+        // Ödeme reddet
+        async function rejectPayment(paymentId) {
+            if (!confirm('Bu ödemeyi reddetmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/payments/${paymentId}/reject`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadPayments();
+                    alert('Ödeme başarıyla reddedildi.');
+                } else {
+                    alert('Ödeme reddedilirken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Ödeme reddetme hatası:', error);
+                alert('Ödeme reddedilirken hata oluştu.');
+            }
+        }
+
+        // Dekont onayla
+        async function approveReceipt(receiptId) {
+            try {
+                const response = await fetch(`/api/receipts/${receiptId}/approve`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadPayments();
+                    alert('Dekont başarıyla onaylandı.');
+                } else {
+                    alert('Dekont onaylanırken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Dekont onaylama hatası:', error);
+                alert('Dekont onaylanırken hata oluştu.');
+            }
+        }
+
+        // Dekont reddet
+        async function rejectReceipt(receiptId) {
+            if (!confirm('Bu dekontu reddetmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/receipts/${receiptId}/reject`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadPayments();
+                    alert('Dekont başarıyla reddedildi.');
+                } else {
+                    alert('Dekont reddedilirken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Dekont reddetme hatası:', error);
+                alert('Dekont reddedilirken hata oluştu.');
+            }
+        }
+
+        // Üye çıkar
+        async function removeMember(userId) {
+            if (!confirm('Bu üyeyi gruptan çıkarmak istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/members/${userId}/remove`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadMembers();
+                    alert('Üye başarıyla gruptan çıkarıldı.');
+                } else {
+                    alert('Üye çıkarılırken hata oluştu.');
+                }
+            } catch (error) {
+                console.error('Üye çıkarma hatası:', error);
+                alert('Üye çıkarılırken hata oluştu.');
+            }
+        }
+    </script>
+</body>
+
+</html>

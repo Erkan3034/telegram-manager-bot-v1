@@ -1,74 +1,90 @@
-from __future__ import annotations
+"""
+Telegram Bot Konfigürasyon Dosyası
+Bu dosya bot için gerekli tüm ayarları içerir.
+"""
 
 import os
-from dataclasses import dataclass
-from typing import List
-
 from dotenv import load_dotenv
 
-
+# .env dosyasını yükle
 load_dotenv()
 
+class Config:
+    """Bot konfigürasyon sınıfı"""
+    
+    # Telegram Bot Ayarları
+    BOT_TOKEN = os.getenv('BOT_TOKEN')
+    ADMIN_IDS = [int(id.strip()) for id in os.getenv('ADMIN_IDS', '').split(',') if id.strip()]
+    GROUP_ID = int(os.getenv('GROUP_ID', 0))
+    
+    # Supabase Ayarları
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+    
+    # Flask Ayarları
+    FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default-secret-key')
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+    
+    # Ödeme Ayarları
+    SHOPIER_PAYMENT_URL = os.getenv('SHOPIER_PAYMENT_URL', 'https://www.shopier.com/payment/example')
+    
+    # Bot Ayarları
+    WELCOME_MESSAGE = "Hoş geldin, {username}! 🎉\n\nKompass Network ailesine katılmak için hazır mısın?"
+    INTRO_MESSAGE = """
+🌟 **Kompass Network'e Hoş Geldiniz!**
 
-@dataclass
-class Settings:
-    """Application runtime settings loaded from environment.
-
-    Note: Keep secrets in your local .env file, never commit real tokens.
+Bu bot, özel içeriklerimizden yararlanmanız için tasarlanmıştır.
+Aşağıdaki butona tıklayarak detaylı tanıtımımızı görebilirsiniz.
     """
+    
+    # Tanıtım Mesajı
+    PROMOTION_MESSAGE = """
+🚀 **Kompass Network Özel İçerik Paketi**
 
-    bot_token: str
-    admin_ids: List[int]
-    main_group_id: int
-    shopier_payment_url: str
+✨ **Neler Sunuyoruz:**
+• 📚 Özel eğitim içerikleri
+• 🎥 Canlı yayınlar
+• 👥 Topluluk desteği
+• ⭐ VIP erişim
+• 🎯 Özel danışmanlık
 
-    supabase_url: str
-    supabase_key: str
-    supabase_bucket_receipts: str = "receipts"
+💰 **Fiyat:** 99.99 TL
 
-    # Moderation
-    banned_words: List[str] = None  # populated below
-
-    @staticmethod
-    def from_env() -> "Settings":
-        bot_token = os.getenv("BOT_TOKEN", "")
-        if not bot_token:
-            raise RuntimeError("BOT_TOKEN is required. Put it in your .env file.")
-
-        admin_ids_raw = os.getenv("ADMIN_IDS", "")
-        if not admin_ids_raw:
-            raise RuntimeError("ADMIN_IDS is required. Example: ADMIN_IDS=123456789,987654321")
-
-        admin_ids = [int(x.strip()) for x in admin_ids_raw.split(",") if x.strip()]
-
-        main_group_id_raw = os.getenv("MAIN_GROUP_ID", "")
-        if not main_group_id_raw:
-            raise RuntimeError("MAIN_GROUP_ID is required.")
-
-        shopier_payment_url = os.getenv("SHOPIER_PAYMENT_URL", "https://shopier.com/orneksatis")
-
-        supabase_url = os.getenv("SUPABASE_URL", "")
-        supabase_key = os.getenv("SUPABASE_ANON_KEY", "") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-        if not supabase_url or not supabase_key:
-            raise RuntimeError("Supabase credentials are required: SUPABASE_URL and SUPABASE_ANON_KEY (or SERVICE key).")
-
-        banned_words_raw = os.getenv(
-            "BANNED_WORDS",
-            "küfür,aptal,salak,mal,piç,orospu,ibne,gerizekalı,lanet"  # sample defaults
-        )
-        banned_words = [w.strip().lower() for w in banned_words_raw.split(",") if w.strip()]
-
-        return Settings(
-            bot_token=bot_token,
-            admin_ids=admin_ids,
-            main_group_id=int(main_group_id_raw),
-            shopier_payment_url=shopier_payment_url,
-            supabase_url=supabase_url,
-            supabase_key=supabase_key,
-            banned_words=banned_words,
-        )
-
-
-settings = Settings.from_env()
-
-
+📋 Devam etmek için aşağıdaki soruları yanıtlayın.
+Bu sorular sayesinde size daha iyi hizmet verebiliriz.
+    """
+    
+    # Varsayılan Sorular
+    DEFAULT_QUESTIONS = [
+        "Adınız nedir?",
+        "Soyadınız nedir?",
+        "Neden katılmak istiyorsunuz?",
+        "Telefon numaranız nedir?"
+    ]
+    
+    # Yasaklı Kelimeler
+    BANNED_WORDS = [
+        "küfür", "hakaret", "kötü", "berbat", "rezalet",
+        "aptal", "salak", "gerizekalı", "ahmak"
+    ]
+    
+    # Dosya Yükleme Ayarları
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    ALLOWED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
+    
+    @classmethod
+    def validate_config(cls):
+        """Konfigürasyon değerlerini doğrular"""
+        required_fields = [
+            'BOT_TOKEN', 'SUPABASE_URL', 'SUPABASE_KEY'
+        ]
+        
+        missing_fields = []
+        for field in required_fields:
+            if not getattr(cls, field):
+                missing_fields.append(field)
+        
+        if missing_fields:
+            raise ValueError(f"Eksik konfigürasyon değerleri: {', '.join(missing_fields)}")
+        
+        return True
