@@ -8,6 +8,8 @@ from typing import List, Dict, Optional, Any
 import json
 from datetime import datetime
 from config import Config
+from typing import Tuple
+from passlib.hash import bcrypt
 
 class DatabaseService:
     """Supabase veritabanı servisi"""
@@ -241,16 +243,15 @@ class DatabaseService:
             return False
     
     # Grup üyeliği işlemleri
-    async def add_group_member(self, user_id: int, group_id: int) -> Optional[Dict]:
-        """Kullanıcıyı gruba ekler"""
+    async def add_group_member(self, user_id: int, group_id: int, status: str = 'active') -> Optional[Dict]:
+        """Kullanıcıya grup kaydı ekler (status: invited|active)"""
         try:
             member_data = {
                 'user_id': user_id,
                 'group_id': group_id,
                 'joined_at': datetime.now().isoformat(),
-                'status': 'active'
+                'status': status
             }
-            
             result = self.supabase.table('group_members').insert(member_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
@@ -274,3 +275,117 @@ class DatabaseService:
         except Exception as e:
             print(f"Grup üyesi çıkarma hatası: {e}")
             return False
+
+    # Bot ayarları (komut mesajları)
+    async def get_bot_settings(self) -> Dict:
+        """Bot ayarlarını getirir (tek satır beklenir)."""
+        try:
+            res = self.supabase.table('bot_settings').select('*').limit(1).execute()
+            if res.data:
+                return res.data[0]
+            # yoksa varsayılan üret
+            defaults = {
+                'start_message': 'Hoş geldiniz! /start ile başlayın.',
+                'help_message': 'Yardım: /start, /admin, /help',
+                'intro_message': None,
+                'promotion_message': None,
+                'payment_message': None,
+                'commands': None,
+                'group_id': None,
+                'shopier_payment_url': None
+            }
+            self.supabase.table('bot_settings').insert(defaults).execute()
+            return defaults
+        except Exception as e:
+            print(f"Bot ayarlarını getirme hatası: {e}")
+            return {
+                'start_message': 'Hoş geldiniz! /start ile başlayın.',
+                'help_message': 'Yardım: /start, /admin, /help',
+                'intro_message': None,
+                'promotion_message': None,
+                'payment_message': None,
+                'commands': None,
+                'group_id': None,
+                'shopier_payment_url': None
+            }
+
+    async def update_bot_settings(self, start_message: Optional[str] = None, help_message: Optional[str] = None, intro_message: Optional[str] = None, promotion_message: Optional[str] = None, payment_message: Optional[str] = None, commands: Optional[str] = None, group_id: Optional[str] = None, shopier_payment_url: Optional[str] = None) -> bool:
+        """Bot ayarlarını günceller veya oluşturur."""
+        try:
+            res = self.supabase.table('bot_settings').select('id').limit(1).execute()
+            payload: Dict[str, Any] = {}
+            if start_message is not None:
+                payload['start_message'] = start_message
+            if help_message is not None:
+                payload['help_message'] = help_message
+            if intro_message is not None:
+                payload['intro_message'] = intro_message
+            if promotion_message is not None:
+                payload['promotion_message'] = promotion_message
+            if payment_message is not None:
+                payload['payment_message'] = payment_message
+            if commands is not None:
+                payload['commands'] = commands
+            if group_id is not None:
+                payload['group_id'] = group_id
+            if shopier_payment_url is not None:
+                payload['shopier_payment_url'] = shopier_payment_url
+            if not payload:
+                return True
+            if res.data:
+                bot_id = res.data[0]['id']
+                self.supabase.table('bot_settings').update(payload).eq('id', bot_id).execute()
+            else:
+                self.supabase.table('bot_settings').insert(payload).execute()
+            return True
+        except Exception as e:
+            print(f"Bot ayarları güncelleme hatası: {e}")
+            return False
+
+    # Admin kullanıcıları
+    async def get_admin_by_email(self, email: str) -> Optional[Dict]:
+        try:
+            res = self.supabase.table('admins').select('*').eq('email', email).limit(1).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"Admin getirme hatası: {e}")
+            return None
+
+    async def create_admin(self, username: str, email: str, password_hash: str) -> Optional[Dict]:
+        try:
+            payload = {
+                'username': username,
+                'email': email,
+                'password_hash': password_hash,
+                'created_at': datetime.now().isoformat()
+            }
+            res = self.supabase.table('admins').insert(payload).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"Admin oluşturma hatası: {e}")
+            return None
+
+    async def count_admins(self) -> int:
+        try:
+            res = self.supabase.table('admins').select('id').execute()
+            return len(res.data) if res.data else 0
+        except Exception as e:
+            print(f"Admin sayısı hatası: {e}")
+            return 0
+
+    async def list_admins(self) -> List[Dict]:
+        try:
+            res = self.supabase.table('admins').select('id, username, email, created_at').execute()
+            return res.data if res.data else []
+        except Exception as e:
+            print(f"Admin listeleme hatası: {e}")
+            return []
+
+    async def create_admin_secure(self, username: str, email: str, raw_password: str) -> Optional[Dict]:
+        """Bcrypt ile güvenli admin oluşturur."""
+        try:
+            password_hash = bcrypt.hash(raw_password)
+            return await self.create_admin(username=username, email=email, password_hash=password_hash)
+        except Exception as e:
+            print(f"Güvenli admin oluşturma hatası: {e}")
+            return None

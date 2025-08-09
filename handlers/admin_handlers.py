@@ -202,13 +202,21 @@ class AdminHandler:
         success = await self.db.update_payment_status(payment_id, 'approved')
         
         if success:
-            # Kullanıcıyı gruba ekle
             payment = await self.db.get_payment(payment_id)
             if payment:
                 user_id = payment['user_id']
-                await self.group_service.add_user_to_group(user_id)
-                
-                await callback.answer("✅ Ödeme onaylandı ve kullanıcı gruba eklendi.", show_alert=True)
+                # Sadece dekont onayı ile gruba alınacak; kullanıcıdan dekont talep et
+                try:
+                    await callback.message.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            "💳 Ödemeniz alındı.\n\n"
+                            "📎 Lütfen ödeme dekontunuzu bu sohbete PDF/JPG/PNG olarak gönderin."
+                        )
+                    )
+                except Exception:
+                    pass
+                await callback.answer("✅ Ödeme işaretlendi. Kullanıcıdan dekont istendi.", show_alert=True)
             else:
                 await callback.answer("❌ Ödeme bilgisi bulunamadı.", show_alert=True)
         else:
@@ -261,9 +269,10 @@ class AdminHandler:
             receipt = await self.db.get_receipt(receipt_id)
             if receipt:
                 user_id = receipt['user_id']
+                # Kullanıcıya onay mesajı ve davet linki gönder (tek kriter dekont onayı)
                 await self.group_service.add_user_to_group(user_id)
                 
-                await callback.answer("✅ Dekont onaylandı ve kullanıcı gruba eklendi.", show_alert=True)
+                await callback.answer("✅ Dekont onaylandı ve kullanıcı gruba davet edildi.", show_alert=True)
             else:
                 await callback.answer("❌ Dekont bilgisi bulunamadı.", show_alert=True)
         else:

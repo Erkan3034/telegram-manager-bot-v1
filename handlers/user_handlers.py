@@ -50,19 +50,30 @@ class UserHandler:
                 last_name=message.from_user.last_name
             )
         
-        # Hoş geldin mesajı
-        welcome_text = Config.WELCOME_MESSAGE.format(username=username)
+        # Hoş geldin mesajı (db'deki ayarlar öncelikli) ve {kullanıcı_adi} desteği
+        settings = await self.db.get_bot_settings()
+        raw_text = settings.get('start_message') or Config.WELCOME_MESSAGE
+        # Türkçe yer tutucu desteği
+        raw_text = raw_text.replace('{kullanıcı_adi}', '{username}')
+        try:
+            welcome_text = raw_text.format(username=username)
+        except Exception:
+            # Hatalı yer tutucu varsa en azından username'i basalım
+            welcome_text = raw_text.replace('{username}', username)
         await message.answer(welcome_text)
         
         # Tanıtım butonu
         builder = InlineKeyboardBuilder()
         builder.button(text="📋 Tanıtımı Gör", callback_data="show_promotion")
         
-        await message.answer(Config.INTRO_MESSAGE, reply_markup=builder.as_markup())
+        intro = settings.get('intro_message') or Config.INTRO_MESSAGE
+        await message.answer(intro, reply_markup=builder.as_markup())
     
     async def show_promotion(self, callback: CallbackQuery, state: FSMContext):
         """Tanıtım mesajını gösterir"""
-        await callback.message.edit_text(Config.PROMOTION_MESSAGE)
+        settings = await self.db.get_bot_settings()
+        promo = settings.get('promotion_message') or Config.PROMOTION_MESSAGE
+        await callback.message.edit_text(promo)
         
         # Sorulara başla
         await self.start_questions(callback.message, state)
@@ -121,7 +132,9 @@ class UserHandler:
         user_id = message.from_user.id
         await self.db.create_payment(user_id)
         
-        payment_text = f"""
+        settings = await self.db.get_bot_settings()
+        custom_payment = settings.get('payment_message')
+        payment_text = custom_payment or f"""
 💳 **Ödeme Bilgileri**
 
 💰 **Tutar:** 99.99 TL
@@ -286,3 +299,10 @@ async def handle_receipt(message: Message, state: FSMContext):
     """Dekont işleme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
     await handler.handle_receipt(message, state)
+
+@router.message(Command("help"))
+async def help_command(message: Message):
+    db = DatabaseService()
+    settings = await db.get_bot_settings()
+    text = settings.get('help_message') or "Yardım: /start, /admin, /help"
+    await message.answer(text)

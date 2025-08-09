@@ -5,6 +5,7 @@ Bu dosya botun giriş noktasıdır.
 
 import asyncio
 import logging
+import json
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
@@ -24,13 +25,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 async def set_commands(bot: Bot):
-    """Bot komutlarını ayarlar"""
-    commands = [
+    """Bot komutlarını ayarlar (bot_settings varsa onu kullanır)."""
+    # Varsayılan komutlar
+    default_commands = [
         BotCommand(command="start", description="Botu başlat"),
         BotCommand(command="admin", description="Admin paneli"),
         BotCommand(command="help", description="Yardım"),
     ]
-    await bot.set_my_commands(commands)
+
+    try:
+        db = DatabaseService()
+        settings = await db.get_bot_settings()
+        commands_json = settings.get('commands') if settings else None
+        if commands_json:
+            try:
+                data = json.loads(commands_json)
+                commands = []
+                for item in data:
+                    cmd = (item.get('command') or '').strip().lstrip('/')
+                    desc = (item.get('description') or '').strip()
+                    if cmd and desc:
+                        commands.append(BotCommand(command=cmd, description=desc))
+                if commands:
+                    await bot.set_my_commands(commands)
+                    logger.info("Bot komutları bot_settings'tan güncellendi (%d komut)", len(commands))
+                    return
+            except Exception as e:
+                logger.warning("Komut JSON parse hatası: %s", e)
+    except Exception as e:
+        logger.warning("Bot ayarları okunamadı: %s", e)
+
+    # Fallback varsayılanlar
+    await bot.set_my_commands(default_commands)
 
 async def on_startup(bot: Bot):
     """Bot başlatıldığında çalışır"""

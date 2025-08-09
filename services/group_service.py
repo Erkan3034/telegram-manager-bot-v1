@@ -19,7 +19,7 @@ class GroupService:
     
     async def add_user_to_group(self, user_id: int) -> bool:
         """
-        Kullanıcıyı gruba ekler
+        Kullanıcıyı gruba ekler ve bilgilendirir
         
         Args:
             user_id: Kullanıcı ID'si
@@ -28,7 +28,16 @@ class GroupService:
             Başarı durumu
         """
         try:
-            # Kullanıcıyı gruba davet et
+            # Onay mesajı gönder
+            await self.bot.send_message(
+                chat_id=user_id,
+                text=(
+                    "✅ Ödemeniz/dekontunuz onaylandı!\n\n"
+                    "Şimdi grubumuza katılabilirsiniz. Davet linki birazdan gönderilecek."
+                )
+            )
+
+            # Kullanıcı için tek kullanımlık davet linki oluştur
             invite_link = await self.bot.create_chat_invite_link(
                 chat_id=self.group_id,
                 member_limit=1
@@ -37,8 +46,20 @@ class GroupService:
             # Kullanıcıya davet linkini gönder
             await self.bot.send_message(
                 chat_id=user_id,
-                text=f"🎉 Tebrikler! Ödeme onaylandı.\n\nGrubumuza katılmak için aşağıdaki linke tıklayın:\n{invite_link.invite_link}"
+                text=(
+                    "🎉 Tebrikler!\n\n"
+                    "Grubumuza katılmak için aşağıdaki linke tıklayın:\n"
+                    f"{invite_link.invite_link}"
+                )
             )
+            
+            # Supabase'e 'invited' olarak kaydet
+            try:
+                from services.database import DatabaseService
+                db = DatabaseService()
+                await db.add_group_member(user_id=user_id, group_id=self.group_id, status='invited')
+            except Exception as _:
+                pass
             
             return True
             
