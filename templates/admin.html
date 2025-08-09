@@ -75,6 +75,24 @@
             background: #f8f9fa;
             border: none;
         }
+        /* Settings tabs: force dark text for visibility */
+        
+        .card-header .nav-tabs .nav-link {
+            color: #111 !important;
+        }
+        
+        .card-header .nav-tabs .nav-link:hover,
+        .card-header .nav-tabs .nav-link:focus {
+            color: #000 !important;
+        }
+        
+        .card-header .nav-tabs .nav-link.active {
+            color: #111 !important;
+            background-color: #fff;
+            border: none;
+            border-top-left-radius: .5rem;
+            border-top-right-radius: .5rem;
+        }
     </style>
 </head>
 
@@ -423,11 +441,11 @@
             document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
             const sideLinks = Array.from(document.querySelectorAll('.sidebar .nav-link'));
             sideLinks.forEach(l => {
-                if (l.getAttribute('onclick') ? .includes(section)) l.classList.add('active')
+                if (l.getAttribute('onclick') && l.getAttribute('onclick').includes(section)) l.classList.add('active');
             });
             const mobileLinks = Array.from(document.querySelectorAll('#mobileMenu .nav-link'));
             mobileLinks.forEach(l => {
-                if (l.getAttribute('onclick') ? .includes(section)) l.classList.add('active')
+                if (l.getAttribute('onclick') && l.getAttribute('onclick').includes(section)) l.classList.add('active');
             });
 
             // Bölüme göre veri yükle
