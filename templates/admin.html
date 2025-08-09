@@ -146,6 +146,15 @@
 
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10 main-content">
+                <!-- Topbar (Desktop) -->
+                <div class="d-none d-md-block">
+                    <div class="bg-white border rounded-3 px-3 py-2 mb-3 d-flex align-items-center justify-content-between">
+                        <h5 class="m-0 d-flex align-items-center gap-2"><i class="fab fa-telegram text-primary"></i> Admin Panel</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="/logout" class="btn btn-outline-danger btn-sm"><i class="fas fa-sign-out-alt me-1"></i> Çıkış</a>
+                        </div>
+                    </div>
+                </div>
                 <!-- Dashboard Section -->
                 <div id="dashboard-section">
                     <h2 class="mb-4">Dashboard</h2>
@@ -253,58 +262,80 @@
 
                 <!-- Settings Section -->
                 <div id="settings-section" style="display:none;">
-                    <h2 class="mb-4">Bot Ayarları</h2>
-                    <div class="card mb-3">
+                    <h2 class="mb-3">Bot Ayarları</h2>
+                    <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">Komut ve Mesajlar</h5>
+                            <ul class="nav nav-tabs card-header-tabs" id="settingsTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="tab-messages" data-bs-toggle="tab" data-bs-target="#pane-messages" type="button" role="tab">Mesajlar</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="tab-commands" data-bs-toggle="tab" data-bs-target="#pane-commands" type="button" role="tab">Komutlar</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="tab-integration" data-bs-toggle="tab" data-bs-target="#pane-integration" type="button" role="tab">Grup & Ödeme</button>
+                                </li>
+                            </ul>
                         </div>
                         <div class="card-body">
                             <form id="settingsForm" onsubmit="return false;">
-                                <div class="mb-3">
-                                    <label class="form-label">/start Mesajı</label>
-                                    <textarea id="startMessage" class="form-control" rows="2" placeholder="Hoş geldin {username} ..."></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">/help Mesajı</label>
-                                    <textarea id="helpMessage" class="form-control" rows="2" placeholder="Yardım metni..."></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Tanıtım Giriş Mesajı</label>
-                                    <textarea id="introMessage" class="form-control" rows="3" placeholder="INTRO_MESSAGE..."></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Tanıtım (Promosyon) Mesajı</label>
-                                    <textarea id="promoMessage" class="form-control" rows="4" placeholder="PROMOTION_MESSAGE..."></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Ödeme Mesajı</label>
-                                    <textarea id="paymentMessage" class="form-control" rows="4" placeholder="Ödeme linki ve açıklama..."></textarea>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Grup ID</label>
-                                            <input id="groupId" type="text" class="form-control" placeholder="-100xxxxxxxxxx" />
+                                <div class="tab-content">
+                                    <!-- Mesajlar -->
+                                    <div class="tab-pane fade show active" id="pane-messages" role="tabpanel">
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label">/start Mesajı</label>
+                                                <textarea id="startMessage" class="form-control" rows="2" placeholder="Hoş geldin {username} ..."></textarea>
+                                                <small class="text-muted">Değişkenler: {username}, {kullanıcı_adi}</small>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">/help Mesajı</label>
+                                                <textarea id="helpMessage" class="form-control" rows="2" placeholder="Yardım metni..."></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Tanıtım Giriş Mesajı</label>
+                                                <textarea id="introMessage" class="form-control" rows="3" placeholder="INTRO_MESSAGE..."></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Tanıtım (Promosyon) Mesajı</label>
+                                                <textarea id="promoMessage" class="form-control" rows="4" placeholder="PROMOTION_MESSAGE..."></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Ödeme Mesajı</label>
+                                                <textarea id="paymentMessage" class="form-control" rows="4" placeholder="Ödeme linki ve açıklama..."></textarea>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Ödeme URL'si</label>
-                                            <input id="shopierUrl" type="text" class="form-control" placeholder="https://www.shopier.com/payment/..." />
+                                    <!-- Komutlar -->
+                                    <div class="tab-pane fade" id="pane-commands" role="tabpanel">
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="form-label m-0">Komut Listesi (JSON)</label>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="applyCommands()"><i class="fas fa-bolt me-1"></i> Telegram'a Uygula</button>
+                                        </div>
+                                        <textarea id="commandsJson" class="form-control" rows="6" placeholder='[{"command":"start","description":"Botu başlat"}]'></textarea>
+                                        <div class="form-text" id="commandsHelp">Geçerli JSON olmalı. Örnek: [{"command":"start","description":"Botu başlat"}]</div>
+                                    </div>
+                                    <!-- Grup & Ödeme -->
+                                    <div class="tab-pane fade" id="pane-integration" role="tabpanel">
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">Grup ID</label>
+                                                <input id="groupId" type="text" class="form-control" placeholder="-100xxxxxxxxxx" />
+                                                <div class="form-text">Telegram grup ID'si (ör. -100...)</div>
+                                            </div>
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">Ödeme URL'si</label>
+                                                <input id="shopierUrl" type="url" class="form-control" placeholder="https://www.shopier.com/payment/..." />
+                                                <div class="form-text">Kullanıcıların ödeme yapacağı bağlantı</div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Komut Listesi (JSON)</label>
-                                    <textarea id="commandsJson" class="form-control" rows="3" placeholder='[{"command":"start","description":"Botu başlat"}]'></textarea>
-                                    <small class="text-muted"></small>
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Kaydet</button>
-                                    <button class="btn btn-outline-secondary" onclick="loadSettings()"><i class="fas fa-undo"></i> Yenile</button>
-                                    <button class="btn btn-outline-primary" onclick="applyCommands()"><i class="fas fa-bolt"></i> Komutları Uygula</button>
                                 </div>
                             </form>
+                        </div>
+                        <div class="card-footer bg-light d-flex flex-wrap gap-2 justify-content-end">
+                            <button class="btn btn-outline-secondary" onclick="loadSettings()"><i class="fas fa-rotate me-1"></i> Yenile</button>
+                            <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save me-1"></i> Kaydet</button>
                         </div>
                     </div>
                 </div>
@@ -383,13 +414,21 @@
             document.getElementById('questions-section').style.display = 'none';
             document.getElementById('payments-section').style.display = 'none';
             document.getElementById('members-section').style.display = 'none';
+            document.getElementById('settings-section').style.display = 'none';
 
             // Seçilen bölümü göster
             document.getElementById(section + '-section').style.display = 'block';
 
             // Aktif nav link'i güncelle
             document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            event.target.classList.add('active');
+            const sideLinks = Array.from(document.querySelectorAll('.sidebar .nav-link'));
+            sideLinks.forEach(l => {
+                if (l.getAttribute('onclick') ? .includes(section)) l.classList.add('active')
+            });
+            const mobileLinks = Array.from(document.querySelectorAll('#mobileMenu .nav-link'));
+            mobileLinks.forEach(l => {
+                if (l.getAttribute('onclick') ? .includes(section)) l.classList.add('active')
+            });
 
             // Bölüme göre veri yükle
             switch (section) {
@@ -752,6 +791,23 @@
             }
         }
 
+        function validateSettingsPayload(payload) {
+            if (payload.shopier_payment_url && !/^https?:\/\//i.test(payload.shopier_payment_url)) {
+                showToast('Geçersiz ödeme URL\'si', 'error');
+                return false;
+            }
+            const raw = document.getElementById('commandsJson').value.trim();
+            if (raw) {
+                try {
+                    JSON.parse(raw);
+                } catch (_) {
+                    showToast('Komut listesi geçerli JSON olmalı', 'error');
+                    return false;
+                }
+            }
+            return true;
+        }
+
         async function saveSettings() {
             try {
                 const payload = {
@@ -764,6 +820,7 @@
                     group_id: document.getElementById('groupId').value,
                     shopier_payment_url: document.getElementById('shopierUrl').value
                 };
+                if (!validateSettingsPayload(payload)) return;
                 const res = await apiFetch('/api/bot-settings', {
                     method: 'POST',
                     headers: {
@@ -773,14 +830,13 @@
                 });
                 if (res.ok) {
                     showToast('Ayarlar kaydedildi.');
-                    // Komutlar değiştiyse anında uygula
                     await applyCommands();
                 } else {
                     showToast('Ayarlar kaydedilemedi.', 'error');
                 }
             } catch (e) {
                 console.error('Ayar kaydı hatası:', e);
-                alert('Ayar kaydı başarısız.');
+                showToast('Ayar kaydı başarısız.', 'error');
             }
         }
 
