@@ -41,6 +41,21 @@ def invite_user(user_id: int):
     """Sync wrapper to invite a user to the group and notify them."""
     return run_async(_invite_user_async(user_id))
 
+async def _remove_user_async(user_id: int):
+    """Kullanıcıyı Telegram grubundan çıkaran async yardımcı."""
+    from aiogram import Bot
+    from services.group_service import GroupService
+    bot = Bot(token=Config.BOT_TOKEN)
+    try:
+        group_service = GroupService(bot)
+        await group_service.remove_user_from_group(user_id)
+        return True
+    finally:
+        await bot.session.close()
+
+def remove_user(user_id: int) -> bool:
+    return run_async(_remove_user_async(user_id))
+
 async def _apply_commands_async():
     """bot_settings içindeki komutları Telegram'a set eder."""
     from aiogram import Bot
@@ -314,6 +329,27 @@ def get_members():
         db = get_db()
         members = run_async(db.get_group_members(Config.GROUP_ID))
         return jsonify(members)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/members/<int:user_id>/remove', methods=['POST'])
+def remove_member(user_id: int):
+    """Üyeyi Telegram grubundan ve veritabanı kaydından çıkarır"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        db = get_db()
+        # Telegram grubundan çıkar
+        try:
+            remove_user(user_id)
+        except Exception:
+            # Telegram'dan çıkarma başarısız olabilir; DB'den yine de kaldırmayı deneriz
+            pass
+        # DB kaydını kaldır
+        ok = run_async(db.remove_group_member(user_id, Config.GROUP_ID))
+        if ok:
+            return jsonify({'success': True})
+        return jsonify({'error': 'Üye çıkarılamadı'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
