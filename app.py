@@ -355,7 +355,7 @@ def bot_settings():
         group_id=data.get('group_id'),
         shopier_payment_url=data.get('shopier_payment_url')
     ))
-    # In-memory Config güncellemesi (process çalıştığı sürece etkili)
+    # In-memory Config güncellemesi (process çalıştığı sürece etkili olur)
     try:
         if 'group_id' in data and str(data['group_id']).strip():
             from config import Config as _C
