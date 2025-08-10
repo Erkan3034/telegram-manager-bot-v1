@@ -112,10 +112,33 @@ class DatabaseService:
     async def delete_question(self, question_id: int) -> bool:
         """Soru siler"""
         try:
-            self.supabase.table('questions').delete().eq('id', question_id).execute()
+            # Supabase bağlantısını kontrol et
+            if not self.supabase:
+                print("Supabase client başlatılamadı")
+                return False
+            
+            # Soru var mı kontrol et
+            question_check = self.supabase.table('questions').select('id').eq('id', question_id).execute()
+            if not question_check.data:
+                print(f"Soru bulunamadı: {question_id}")
+                return False
+            
+            # Önce bu soruya ait tüm cevapları sil
+            try:
+                answers_result = self.supabase.table('answers').delete().eq('question_id', question_id).execute()
+                print(f"Silinen cevap sayısı: {len(answers_result.data) if answers_result.data else 0}")
+            except Exception as answer_delete_error:
+                print(f"Cevap silme hatası: {answer_delete_error}")
+                # Cevap silme hatası olsa bile devam et
+            
+            # Şimdi soruyu sil
+            result = self.supabase.table('questions').delete().eq('id', question_id).execute()
+            print(f"Soru silme sonucu: {result}")
             return True
+            
         except Exception as e:
             print(f"Soru silme hatası: {e}")
+            print(f"Hata türü: {type(e).__name__}")
             return False
     
     # Cevap işlemleri
@@ -389,3 +412,156 @@ class DatabaseService:
         except Exception as e:
             print(f"Güvenli admin oluşturma hatası: {e}")
             return None
+
+    # Mesaj Yönetimi İşlemleri
+    async def get_messages(self) -> List[Dict]:
+        """Tüm mesajları getirir"""
+        try:
+            result = self.supabase.table('messages').select('*').order('order_index').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Mesajları getirme hatası: {e}")
+            return []
+
+    async def get_message(self, message_id: int) -> Optional[Dict]:
+        """Belirli bir mesajı getirir"""
+        try:
+            result = self.supabase.table('messages').select('*').eq('id', message_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Mesaj getirme hatası: {e}")
+            return None
+
+    async def add_message(self, type: str, title: str, content: str, order_index: int, delay: float = 1.0, is_active: bool = True) -> Optional[Dict]:
+        """Yeni mesaj ekler"""
+        try:
+            message_data = {
+                'type': type,
+                'title': title,
+                'content': content,
+                'order_index': order_index,
+                'delay': delay,
+                'is_active': is_active,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('messages').insert(message_data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Mesaj ekleme hatası: {e}")
+            return None
+
+    async def update_message(self, message_id: int, type: str, title: str, content: str, order_index: int, delay: float = 1.0, is_active: bool = True) -> bool:
+        """Mesajı günceller"""
+        try:
+            update_data = {
+                'type': type,
+                'title': title,
+                'content': content,
+                'order_index': order_index,
+                'delay': delay,
+                'is_active': is_active,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            self.supabase.table('messages').update(update_data).eq('id', message_id).execute()
+            return True
+        except Exception as e:
+            print(f"Mesaj güncelleme hatası: {e}")
+            return False
+
+    async def delete_message(self, message_id: int) -> bool:
+        """Mesajı siler"""
+        try:
+            self.supabase.table('messages').delete().eq('id', message_id).execute()
+            return True
+        except Exception as e:
+            print(f"Mesaj silme hatası: {e}")
+            return False
+
+    async def toggle_message_status(self, message_id: int) -> bool:
+        """Mesaj durumunu değiştirir (aktif/pasif)"""
+        try:
+            # Önce mevcut durumu al
+            message = await self.get_message(message_id)
+            if not message:
+                return False
+            
+            new_status = not message.get('is_active', True)
+            
+            self.supabase.table('messages').update({
+                'is_active': new_status,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', message_id).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Mesaj durumu değiştirme hatası: {e}")
+            return False
+
+    async def reorder_messages(self, updates: List[Dict]) -> bool:
+        """Mesajların sırasını günceller"""
+        try:
+            for update in updates:
+                if 'id' in update and 'order_index' in update:
+                    self.supabase.table('messages').update({
+                        'order_index': update['order_index'],
+                        'updated_at': datetime.now().isoformat()
+                    }).eq('id', update['id']).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Mesaj sırası güncelleme hatası: {e}")
+            return False
+
+    async def get_messages_by_type(self, message_type: str) -> List[Dict]:
+        """Belirli türdeki mesajları sırayla getirir"""
+        try:
+            result = self.supabase.table('messages').select('*').eq('type', message_type).eq('is_active', True).order('order_index').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Tür bazlı mesaj getirme hatası: {e}")
+            return []
+
+    async def get_welcome_messages(self) -> List[Dict]:
+        """Hoş geldin mesajlarını getirir"""
+        return await self.get_messages_by_type('welcome')
+
+    async def get_question_messages(self) -> List[Dict]:
+        """Soru mesajlarını getirir"""
+        return await self.get_messages_by_type('question')
+
+    async def get_payment_messages(self) -> List[Dict]:
+        """Ödeme mesajlarını getirir"""
+        return await self.get_messages_by_type('payment')
+
+    async def get_sss_messages(self) -> List[Dict]:
+        """SSS mesajlarını getirir"""
+        return await self.get_messages_by_type('sss')
+
+    async def update_payment_messages_with_new_link(self, new_payment_url: str) -> bool:
+        """Ödeme linki değiştiğinde, ödeme mesajlarındaki {payment_link} placeholder'ını günceller"""
+        try:
+            # Tüm ödeme mesajlarını al
+            payment_messages = await self.get_payment_messages()
+            
+            for message in payment_messages:
+                if '{payment_link}' in message['content']:
+                    # Placeholder'ı yeni link ile değiştir
+                    updated_content = message['content'].replace('{payment_link}', new_payment_url)
+                    
+                    # Mesajı güncelle
+                    await self.update_message(
+                        message_id=message['id'],
+                        type=message['type'],
+                        title=message['title'],
+                        content=updated_content,
+                        order_index=message['order_index'],
+                        delay=message.get('delay', 1.0),
+                        is_active=message.get('is_active', True)
+                    )
+            
+            return True
+        except Exception as e:
+            print(f"Ödeme mesajları güncelleme hatası: {e}")
+            return False

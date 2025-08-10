@@ -117,6 +117,7 @@
             <ul class="navbar-nav">
                 <li class="nav-item"><a class="nav-link active" href="#" onclick="showSection('dashboard')" data-bs-dismiss="offcanvas"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('questions')" data-bs-dismiss="offcanvas"><i class="fas fa-question-circle me-2"></i>Sorular</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('messages')" data-bs-dismiss="offcanvas"><i class="fas fa-comments me-2"></i>Mesaj Yönetimi</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('payments')" data-bs-dismiss="offcanvas"><i class="fas fa-credit-card me-2"></i>Ödemeler</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('members')" data-bs-dismiss="offcanvas"><i class="fas fa-users me-2"></i>Üyeler</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('settings')" data-bs-dismiss="offcanvas"><i class="fas fa-sliders-h me-2"></i>Ayarlar</a></li>
@@ -141,6 +142,11 @@
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('questions')">
                                 <i class="fas fa-question-circle"></i> Sorular
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" onclick="showSection('messages')">
+                                <i class="fas fa-comments"></i> Mesaj Yönetimi
                             </a>
                         </li>
                         <li class="nav-item">
@@ -230,6 +236,92 @@
                         </div>
                         <div class="card-body">
                             <div id="questions-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Management Section -->
+                <div id="messages-section" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Mesaj Yönetimi</h2>
+                        <button class="btn btn-primary" onclick="showAddMessageModal()">
+                            <i class="fas fa-plus"></i> Yeni Mesaj Ekle
+                        </button>
+                    </div>
+
+                    <!-- Welcome Messages -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">👋 Hoş Geldin Mesajları</h5>
+                            <small class="text-white-50">Bu mesajlar /start komutunda sırayla gösterilir</small>
+                        </div>
+                        <div class="card-body">
+                            <div id="welcome-messages-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question Messages -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">❓ Soru Mesajları</h5>
+                            <small class="text-white-50">Soru öncesi ve sonrası gösterilecek mesajlar</small>
+                        </div>
+                        <div class="card-body">
+                            <div id="question-messages-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Messages -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">💳 Ödeme Mesajları</h5>
+                            <small class="text-white-50">Ödeme sürecinde gösterilecek mesajlar</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Önemli:</strong> Ödeme mesajlarında <code>{payment_link}</code> placeholder'ını kullanabilirsiniz. Bu placeholder, Bot Ayarları'ndaki "Ödeme URL'si" ile otomatik olarak değiştirilecektir.
+                            </div>
+                            <div id="payment-messages-list">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SSS Messages -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">❓ SSS Mesajları</h5>
+                            <small class="text-white-50">Sık Sorulan Sorular için gösterilecek mesajlar</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Bilgi:</strong> SSS mesajları, bot menüsündeki "SSS" butonuna tıklandığında gösterilir.
+                            </div>
+                            <div id="sss-messages-list">
                                 <div class="text-center">
                                     <div class="spinner-border" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
@@ -385,6 +477,116 @@
         </div>
     </div>
 
+    <!-- Message Management Modals -->
+    <!-- Add Message Modal -->
+    <div class="modal fade" id="addMessageModal" tabindex="-1" aria-labelledby="addMessageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMessageModalLabel">Yeni Mesaj Ekle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addMessageForm">
+                        <div class="mb-3">
+                            <label for="messageType" class="form-label">Mesaj Türü</label>
+                            <select class="form-select" id="messageType" required>
+                                <option value="">Seçiniz...</option>
+                                <option value="welcome">👋 Hoş Geldin Mesajı</option>
+                                <option value="question">❓ Soru Mesajı</option>
+                                <option value="payment">💳 Ödeme Mesajı</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageTitle" class="form-label">Mesaj Başlığı</label>
+                            <input type="text" class="form-control" id="messageTitle" placeholder="Mesaj için kısa başlık" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageContent" class="form-label">Mesaj İçeriği</label>
+                            <textarea class="form-control" id="messageContent" rows="8" placeholder="Mesaj içeriğini yazın..." required></textarea>
+                            <div class="form-text">Emoji ve markdown formatı kullanabilirsiniz</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageOrder" class="form-label">Gösterim Sırası</label>
+                            <input type="number" class="form-control" id="messageOrder" placeholder="1, 2, 3..." min="1" required>
+                            <div class="form-text">Mesajın gösterileceği sıra (düşük sayı önce gösterilir)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageDelay" class="form-label">Gecikme Süresi (saniye)</label>
+                            <input type="number" class="form-control" id="messageDelay" placeholder="0" min="0" max="10" step="0.5" value="1">
+                            <div class="form-text">Bu mesajdan sonra kaç saniye beklenilecek</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="messageActive" checked>
+                                <label class="form-check-label" for="messageActive">
+                                    Mesaj aktif
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-primary" onclick="saveMessage()">Mesajı Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Message Modal -->
+    <div class="modal fade" id="editMessageModal" tabindex="-1" aria-labelledby="editMessageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMessageModalLabel">Mesajı Düzenle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editMessageForm">
+                        <input type="hidden" id="editMessageId">
+                        <div class="mb-3">
+                            <label for="editMessageType" class="form-label">Mesaj Türü</label>
+                            <select class="form-select" id="editMessageType" required>
+                                <option value="welcome">👋 Hoş Geldin Mesajı</option>
+                                <option value="question">❓ Soru Mesajı</option>
+                                <option value="payment">💳 Ödeme Mesajı</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMessageTitle" class="form-label">Mesaj Başlığı</label>
+                            <input type="text" class="form-control" id="editMessageTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMessageContent" class="form-label">Mesaj İçeriği</label>
+                            <textarea class="form-control" id="editMessageContent" rows="8" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMessageOrder" class="form-label">Gösterim Sırası</label>
+                            <input type="number" class="form-control" id="editMessageOrder" min="1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMessageDelay" class="form-label">Gecikme Süresi (saniye)</label>
+                            <input type="number" class="form-control" id="editMessageDelay" min="0" max="10" step="0.5">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editMessageActive">
+                                <label class="form-check-label" for="editMessageActive">
+                                    Mesaj aktif
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-primary" onclick="updateMessage()">Güncelle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Toast helper
@@ -430,6 +632,7 @@
             // Tüm bölümleri gizle
             document.getElementById('dashboard-section').style.display = 'none';
             document.getElementById('questions-section').style.display = 'none';
+            document.getElementById('messages-section').style.display = 'none'; // Added messages section
             document.getElementById('payments-section').style.display = 'none';
             document.getElementById('members-section').style.display = 'none';
             document.getElementById('settings-section').style.display = 'none';
@@ -455,6 +658,9 @@
                     break;
                 case 'questions':
                     loadQuestions();
+                    break;
+                case 'messages': // Added messages section
+                    loadMessages();
                     break;
                 case 'payments':
                     loadPayments();
@@ -675,11 +881,14 @@
                     loadQuestions();
                     showToast('Soru başarıyla silindi.');
                 } else {
-                    showToast('Soru silinirken hata oluştu.', 'error');
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || 'Bilinmeyen hata';
+                    showToast(`Soru silinirken hata oluştu: ${errorMessage}`, 'error');
+                    console.error('Soru silme hatası:', errorData);
                 }
             } catch (error) {
                 console.error('Soru silme hatası:', error);
-                alert('Soru silinirken hata oluştu.');
+                showToast(`Soru silinirken hata oluştu: ${error.message}`, 'error');
             }
         }
 
@@ -873,6 +1082,290 @@
                 alert('Komut uygulama hatası.');
             }
         }
+
+        // Message Management Functions
+        function showAddMessageModal() {
+            document.getElementById('addMessageForm').reset();
+            document.getElementById('messageDelay').value = '1';
+            document.getElementById('messageActive').checked = true;
+            new bootstrap.Modal(document.getElementById('addMessageModal')).show();
+        }
+
+        function showEditMessageModal(messageId) {
+            // Mesaj bilgilerini yükle
+            loadMessageForEdit(messageId);
+            new bootstrap.Modal(document.getElementById('editMessageModal')).show();
+        }
+
+        async function loadMessageForEdit(messageId) {
+            try {
+                const response = await apiFetch(`/api/messages/${messageId}`);
+                if (response.ok) {
+                    const message = await response.json();
+                    document.getElementById('editMessageId').value = message.id;
+                    document.getElementById('editMessageType').value = message.type;
+                    document.getElementById('editMessageTitle').value = message.title;
+                    document.getElementById('editMessageContent').value = message.content;
+                    document.getElementById('editMessageOrder').value = message.order_index;
+                    document.getElementById('editMessageDelay').value = message.delay;
+                    document.getElementById('editMessageActive').checked = message.is_active;
+                }
+            } catch (error) {
+                console.error('Mesaj yüklenirken hata:', error);
+                showToast('Mesaj yüklenirken hata oluştu.', 'error');
+            }
+        }
+
+        async function saveMessage() {
+            try {
+                const formData = {
+                    type: document.getElementById('messageType').value,
+                    title: document.getElementById('messageTitle').value,
+                    content: document.getElementById('messageContent').value,
+                    order_index: parseInt(document.getElementById('messageOrder').value),
+                    delay: parseFloat(document.getElementById('messageDelay').value),
+                    is_active: document.getElementById('messageActive').checked
+                };
+
+                if (!formData.type || !formData.title || !formData.content) {
+                    showToast('Lütfen tüm alanları doldurun.', 'error');
+                    return;
+                }
+
+                const response = await apiFetch('/api/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    showToast('Mesaj başarıyla kaydedildi.');
+                    bootstrap.Modal.getInstance(document.getElementById('addMessageModal')).hide();
+                    loadMessages();
+                } else {
+                    const errorData = await response.json();
+                    showToast(`Mesaj kaydedilemedi: ${errorData.error || 'Bilinmeyen hata'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Mesaj kaydetme hatası:', error);
+                showToast('Mesaj kaydedilirken hata oluştu.', 'error');
+            }
+        }
+
+        async function updateMessage() {
+            try {
+                const messageId = document.getElementById('editMessageId').value;
+                const formData = {
+                    type: document.getElementById('editMessageType').value,
+                    title: document.getElementById('editMessageTitle').value,
+                    content: document.getElementById('editMessageContent').value,
+                    order_index: parseInt(document.getElementById('editMessageOrder').value),
+                    delay: parseFloat(document.getElementById('editMessageDelay').value),
+                    is_active: document.getElementById('editMessageActive').checked
+                };
+
+                const response = await apiFetch(`/api/messages/${messageId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    showToast('Mesaj başarıyla güncellendi.');
+                    bootstrap.Modal.getInstance(document.getElementById('editMessageModal')).hide();
+                    loadMessages();
+                } else {
+                    const errorData = await response.json();
+                    showToast(`Mesaj güncellenemedi: ${errorData.error || 'Bilinmeyen hata'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Mesaj güncelleme hatası:', error);
+                showToast('Mesaj güncellenirken hata oluştu.', 'error');
+            }
+        }
+
+        async function deleteMessage(messageId) {
+            if (!confirm('Bu mesajı silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await apiFetch(`/api/messages/${messageId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showToast('Mesaj başarıyla silindi.');
+                    loadMessages();
+                } else {
+                    const errorData = await response.json();
+                    showToast(`Mesaj silinemedi: ${errorData.error || 'Bilinmeyen hata'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Mesaj silme hatası:', error);
+                showToast('Mesaj silinirken hata oluştu.', 'error');
+            }
+        }
+
+        async function toggleMessageStatus(messageId, currentStatus) {
+            try {
+                const response = await apiFetch(`/api/messages/${messageId}/toggle`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showToast(`Mesaj ${currentStatus ? 'deaktif' : 'aktif'} edildi.`);
+                    loadMessages();
+                } else {
+                    showToast('Mesaj durumu değiştirilemedi.', 'error');
+                }
+            } catch (error) {
+                console.error('Mesaj durumu değiştirme hatası:', error);
+                showToast('Mesaj durumu değiştirilemedi.', 'error');
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await apiFetch('/api/messages');
+                const messages = await response.json();
+
+                // Mesajları türlerine göre grupla
+                const welcomeMessages = messages.filter(m => m.type === 'welcome').sort((a, b) => a.order_index - b.order_index);
+                const questionMessages = messages.filter(m => m.type === 'question').sort((a, b) => a.order_index - b.order_index);
+                const paymentMessages = messages.filter(m => m.type === 'payment').sort((a, b) => a.order_index - b.order_index);
+                const sssMessages = messages.filter(m => m.type === 'sss').sort((a, b) => a.order_index - b.order_index);
+
+                // Hoş geldin mesajları
+                renderMessageList('welcome-messages-list', welcomeMessages, 'welcome');
+
+                // Soru mesajları
+                renderMessageList('question-messages-list', questionMessages, 'question');
+
+                // Ödeme mesajları
+                renderMessageList('payment-messages-list', paymentMessages, 'payment');
+
+                // SSS mesajları
+                renderMessageList('sss-messages-list', sssMessages, 'sss');
+            } catch (error) {
+                console.error('Mesajlar yüklenirken hata:', error);
+                showToast('Mesajlar yüklenirken hata oluştu.', 'error');
+            }
+        }
+
+        function renderMessageList(containerId, messages, type) {
+            const container = document.getElementById(containerId);
+
+            if (messages.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted">Bu türde henüz mesaj eklenmemiş.</p>';
+                return;
+            }
+
+            let html = '<div class="list-group" id="' + type + '-sortable">';
+
+            messages.forEach(message => {
+                const statusBadge = message.is_active ?
+                    '<span class="badge bg-success">Aktif</span>' :
+                    '<span class="badge bg-secondary">Pasif</span>';
+
+                const delayText = message.delay > 0 ? `⏱️ ${message.delay}s` : '⚡ Anında';
+
+                html += `
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" 
+                         data-message-id="${message.id}" data-order="${message.order_index}">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">${message.title}</div>
+                            <div class="text-muted small">${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}</div>
+                            <div class="mt-1">
+                                <span class="badge bg-primary">Sıra: ${message.order_index}</span>
+                                <span class="badge bg-info">${delayText}</span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-primary btn-sm" onclick="showEditMessageModal(${message.id})" title="Düzenle">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-${message.is_active ? 'warning' : 'success'} btn-sm" 
+                                    onclick="toggleMessageStatus(${message.id}, ${message.is_active})" 
+                                    title="${message.is_active ? 'Deaktif Et' : 'Aktif Et'}">
+                                <i class="fas fa-${message.is_active ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteMessage(${message.id})" title="Sil">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Sürükle-bırak sıralama için Sortable.js kullan
+            if (typeof Sortable !== 'undefined') {
+                new Sortable(document.getElementById(type + '-sortable'), {
+                    animation: 150,
+                    onEnd: function(evt) {
+                        updateMessageOrder(type, evt.oldIndex, evt.newIndex);
+                    }
+                });
+            }
+        }
+
+        async function updateMessageOrder(type, oldIndex, oldOrder, newIndex, newOrder) {
+            try {
+                const container = document.getElementById(type + '-sortable');
+                const items = Array.from(container.children);
+
+                // Yeni sıralamayı hesapla
+                const updates = items.map((item, index) => ({
+                    id: parseInt(item.dataset.messageId),
+                    order_index: index + 1
+                }));
+
+                const response = await apiFetch('/api/messages/reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        updates
+                    })
+                });
+
+                if (response.ok) {
+                    showToast('Mesaj sırası güncellendi.');
+                    loadMessages(); // Listeyi yenile
+                } else {
+                    showToast('Mesaj sırası güncellenemedi.', 'error');
+                }
+            } catch (error) {
+                console.error('Mesaj sırası güncelleme hatası:', error);
+                showToast('Mesaj sırası güncellenemedi.', 'error');
+            }
+        }
+
+        // Sortable.js kütüphanesini yükle
+        function loadSortableLibrary() {
+            if (typeof Sortable === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+                script.onload = function() {
+                    console.log('Sortable.js yüklendi');
+                };
+                document.head.appendChild(script);
+            }
+        }
+
+        // Sayfa yüklendiğinde Sortable.js'i yükle
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSortableLibrary();
+        });
     </script>
 </body>
 

@@ -221,14 +221,28 @@ def delete_question(question_id):
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
-        db = get_db()
-        success = run_async(db.delete_question(question_id))
-        if success:
-            return jsonify({'message': 'Soru silindi'})
-        else:
-            return jsonify({'error': 'Soru silinemedi'}), 500
+        
+        # Database bağlantısını kontrol et
+        try:
+            db = get_db()
+        except Exception as db_error:
+            print(f"Database bağlantı hatası: {db_error}")
+            return jsonify({'error': f'Veritabanı bağlantı hatası: {str(db_error)}'}), 500
+        
+        # Soru silme işlemi
+        try:
+            success = run_async(db.delete_question(question_id))
+            if success:
+                return jsonify({'message': 'Soru silindi'})
+            else:
+                return jsonify({'error': 'Soru silinemedi - veritabanı işlemi başarısız'}), 500
+        except Exception as delete_error:
+            print(f"Soru silme hatası: {delete_error}")
+            return jsonify({'error': f'Soru silme işlemi hatası: {str(delete_error)}'}), 500
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Genel hata: {e}")
+        return jsonify({'error': f'Beklenmeyen hata: {str(e)}'}), 500
 
 @app.route('/api/payments')
 def get_payments():
@@ -399,6 +413,9 @@ def bot_settings():
         if 'shopier_payment_url' in data and data['shopier_payment_url']:
             from config import Config as _C
             _C.SHOPIER_PAYMENT_URL = data['shopier_payment_url']
+            
+            # Eğer ödeme linki değiştiyse, ödeme mesajlarını güncelle
+            run_async(db.update_payment_messages_with_new_link(data['shopier_payment_url']))
     except Exception:
         pass
     return jsonify({'success': ok})
@@ -428,6 +445,164 @@ def not_found(error):
 def internal_error(error):
     """500 hatası"""
     return jsonify({'error': 'Sunucu hatası'}), 500
+
+# Mesaj Yönetimi API'leri
+@app.route('/api/messages')
+def get_messages():
+    """Tüm mesajları getirir"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        messages = run_async(db.get_messages())
+        return jsonify(messages)
+    except Exception as e:
+        print(f"Mesajlar getirilirken hata: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages', methods=['POST'])
+def add_message():
+    """Yeni mesaj ekler"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        data = request.get_json()
+        required_fields = ['type', 'title', 'content', 'order_index']
+        
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Eksik alan: {field}'}), 400
+        
+        db = get_db()
+        success = run_async(db.add_message(
+            type=data['type'],
+            title=data['title'],
+            content=data['content'],
+            order_index=data['order_index'],
+            delay=data.get('delay', 1.0),
+            is_active=data.get('is_active', True)
+        ))
+        
+        if success:
+            return jsonify({'message': 'Mesaj başarıyla eklendi'})
+        else:
+            return jsonify({'error': 'Mesaj eklenemedi'}), 500
+    except Exception as e:
+        print(f"Mesaj ekleme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/<int:message_id>')
+def get_message(message_id):
+    """Belirli bir mesajı getirir"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        message = run_async(db.get_message(message_id))
+        
+        if message:
+            return jsonify(message)
+        else:
+            return jsonify({'error': 'Mesaj bulunamadı'}), 404
+    except Exception as e:
+        print(f"Mesaj getirme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/<int:message_id>', methods=['PUT'])
+def update_message(message_id):
+    """Mesajı günceller"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        data = request.get_json()
+        required_fields = ['type', 'title', 'content', 'order_index']
+        
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Eksik alan: {field}'}), 400
+        
+        db = get_db()
+        success = run_async(db.update_message(
+            message_id=message_id,
+            type=data['type'],
+            title=data['title'],
+            content=data['content'],
+            order_index=data['order_index'],
+            delay=data.get('delay', 1.0),
+            is_active=data.get('is_active', True)
+        ))
+        
+        if success:
+            return jsonify({'message': 'Mesaj başarıyla güncellendi'})
+        else:
+            return jsonify({'error': 'Mesaj güncellenemedi'}), 500
+    except Exception as e:
+        print(f"Mesaj güncelleme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/<int:message_id>', methods=['DELETE'])
+def delete_message(message_id):
+    """Mesajı siler"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        success = run_async(db.delete_message(message_id))
+        
+        if success:
+            return jsonify({'message': 'Mesaj başarıyla silindi'})
+        else:
+            return jsonify({'error': 'Mesaj silinemedi'}), 500
+    except Exception as e:
+        print(f"Mesaj silme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/<int:message_id>/toggle', methods=['POST'])
+def toggle_message_status(message_id):
+    """Mesaj durumunu değiştirir (aktif/pasif)"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        success = run_async(db.toggle_message_status(message_id))
+        
+        if success:
+            return jsonify({'message': 'Mesaj durumu değiştirildi'})
+        else:
+            return jsonify({'error': 'Mesaj durumu değiştirilemedi'}), 500
+    except Exception as e:
+        print(f"Mesaj durumu değiştirme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/reorder', methods=['POST'])
+def reorder_messages():
+    """Mesajların sırasını günceller"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        data = request.get_json()
+        if 'updates' not in data or not isinstance(data['updates'], list):
+            return jsonify({'error': 'Geçersiz veri formatı'}), 400
+        
+        db = get_db()
+        success = run_async(db.reorder_messages(data['updates']))
+        
+        if success:
+            return jsonify({'message': 'Mesaj sırası güncellendi'})
+        else:
+            return jsonify({'error': 'Mesaj sırası güncellenemedi'}), 500
+    except Exception as e:
+        print(f"Mesaj sırası güncelleme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=Config.FLASK_ENV == 'development', host='0.0.0.0', port=5000)
