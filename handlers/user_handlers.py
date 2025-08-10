@@ -262,7 +262,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
         keyboard.adjust(1)  # Her satırda 1 buton
         
         await message.answer(
-            "💳 **Ödeme Sonrası İşlemler**\n\n"
+            "💳Ödeme Sonrası İşlemler\n\n"
             "Ödemenizi yaptıysanız aşağıdaki butonlardan birini seçin:",
             reply_markup=keyboard.as_markup()
         )
