@@ -257,8 +257,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
         
         # Ödeme mesajlarından sonra butonları göster
         keyboard = InlineKeyboardBuilder()
-        keyboard.button(text="✅ Ödeme Yapıldı", callback_data="payment_done")
-        keyboard.button(text="📎 Dekont Ekle(Hızlı Onaylanır)", callback_data="add_receipt")
+        keyboard.button(text="📎 Ödeme Dekontu Ekle(ss veya pdf)", callback_data="add_receipt")
         keyboard.adjust(1)  # Her satırda 1 buton
         
         await message.answer(

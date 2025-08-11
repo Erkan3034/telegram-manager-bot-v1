@@ -353,7 +353,12 @@
 
                 <!-- Members Section -->
                 <div id="members-section" style="display: none;">
-                    <h2 class="mb-4">Grup Üyeleri</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Grup Üyeleri</h2>
+                        <button class="btn btn-warning" onclick="cleanupDuplicateMembers()">
+                            <i class="fas fa-broom"></i> Aynı Kullanıcıları Temizle
+                        </button>
+                    </div>
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">Üye Listesi</h5>
@@ -996,6 +1001,29 @@
             } catch (error) {
                 console.error('Üye çıkarma hatası:', error);
                 alert('Üye çıkarılırken hata oluştu.');
+            }
+        }
+
+        // Duplicate üyeleri temizle
+        async function cleanupDuplicateMembers() {
+            if (!confirm('Grup üyelerindeki duplicate kayıtları temizlemek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                return;
+            }
+
+            try {
+                const response = await apiFetch('/api/members/cleanup-duplicates', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    loadMembers();
+                    showToast('Duplicate kayıtlar başarıyla temizlendi.');
+                } else {
+                    showToast('Duplicate kayıtlar temizlenirken hata oluştu.', 'error');
+                }
+            } catch (error) {
+                console.error('Duplicate temizleme hatası:', error);
+                alert('Duplicate kayıtlar temizlenirken hata oluştu.');
             }
         }
 

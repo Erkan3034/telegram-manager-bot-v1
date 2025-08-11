@@ -65,7 +65,12 @@ Bu sorular sayesinde size daha iyi hizmet verebiliriz.
     # Yasaklı Kelimeler
     BANNED_WORDS = [
         "küfür", "hakaret", "kötü", "berbat", "rezalet",
-        "aptal", "salak", "gerizekalı", "ahmak"
+        "aptal",  "ahmak","şerefsiz", "ahmak", "ibne", "aptal", "mal", "salak", "gerizekalı", "oç", "orospu", "piç", "şerefsiz",
+    "haysiyetsiz", "karaktersiz", "adi", "sürtük", "p.ç", "kahpe", "yavşak", "godoş", "top",
+    "pezevenk", "gavat", "it", "inek", "dingil", "embesil", "aptalca", "ezik", "yobaz",
+    "puşt", "lanet", "şırfıntı", "züppe", "hayvan", "yamyam", "salakça", "sığır", "gerzek",
+    "bunak", "yalaka", "serseri", "çomar", "domuz", "yavşakça", "bok", "b.k", "kaltak",
+    "dangalak", "akılsız", "bağnaz", "soysuz", "manyak"
     ]
     
     # Dosya Yükleme Ayarları

@@ -367,6 +367,21 @@ def remove_member(user_id: int):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/members/cleanup-duplicates', methods=['POST'])
+def cleanup_duplicate_members():
+    """Grup üyelerindeki duplicate kayıtları temizler"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        db = get_db()
+        success = run_async(db.cleanup_duplicate_members(Config.GROUP_ID))
+        if success:
+            return jsonify({'message': 'Duplicate kayıtlar temizlendi'})
+        else:
+            return jsonify({'error': 'Duplicate kayıtlar temizlenemedi'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/members/invited')
 def get_invited_members():
     """Davet gönderilmiş (group_members kaydı olan) kullanıcıları listeler."""

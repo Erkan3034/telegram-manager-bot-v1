@@ -269,23 +269,48 @@ class DatabaseService:
     async def add_group_member(self, user_id: int, group_id: int, status: str = 'active') -> Optional[Dict]:
         """Kullanıcıya grup kaydı ekler (status: invited|active)"""
         try:
-            member_data = {
-                'user_id': user_id,
-                'group_id': group_id,
-                'joined_at': datetime.now().isoformat(),
-                'status': status
-            }
-            result = self.supabase.table('group_members').insert(member_data).execute()
-            return result.data[0] if result.data else None
+            # Önce kullanıcının zaten grupta olup olmadığını kontrol et
+            existing_member = self.supabase.table('group_members').select('*').eq('user_id', user_id).eq('group_id', group_id).execute()
+            
+            if existing_member.data:
+                # Kullanıcı zaten grupta, sadece durumu güncelle
+                member_data = {
+                    'status': status,
+                    'joined_at': datetime.now().isoformat()
+                }
+                result = self.supabase.table('group_members').update(member_data).eq('user_id', user_id).eq('group_id', group_id).execute()
+                return result.data[0] if result.data else None
+            else:
+                # Yeni üye ekle
+                member_data = {
+                    'user_id': user_id,
+                    'group_id': group_id,
+                    'joined_at': datetime.now().isoformat(),
+                    'status': status
+                }
+                result = self.supabase.table('group_members').insert(member_data).execute()
+                return result.data[0] if result.data else None
         except Exception as e:
             print(f"Grup üyesi ekleme hatası: {e}")
             return None
     
     async def get_group_members(self, group_id: int) -> List[Dict]:
-        """Grup üyelerini getirir"""
+        """Grup üyelerini getirir (her kullanıcı sadece bir kez)"""
         try:
-            result = self.supabase.table('group_members').select('*, users(*)').eq('group_id', group_id).execute()
-            return result.data if result.data else []
+            # Her kullanıcı için sadece en son kaydı al (duplicate'ları önle)
+            result = self.supabase.table('group_members').select('*, users(*)').eq('group_id', group_id).order('joined_at', desc=True).execute()
+            
+            if not result.data:
+                return []
+            
+            # Her kullanıcı için sadece bir kayıt tut (en son olanı)
+            unique_members = {}
+            for member in result.data:
+                user_id = member.get('user_id')
+                if user_id and user_id not in unique_members:
+                    unique_members[user_id] = member
+            
+            return list(unique_members.values())
         except Exception as e:
             print(f"Grup üyelerini getirme hatası: {e}")
             return []
@@ -297,6 +322,30 @@ class DatabaseService:
             return True
         except Exception as e:
             print(f"Grup üyesi çıkarma hatası: {e}")
+            return False
+    
+    async def cleanup_duplicate_members(self, group_id: int) -> bool:
+        """Grup üyelerindeki duplicate kayıtları temizler"""
+        try:
+            # Önce tüm üyeleri al
+            result = self.supabase.table('group_members').select('*').eq('group_id', group_id).order('joined_at', desc=True).execute()
+            
+            if not result.data:
+                return True
+            
+            # Her kullanıcı için sadece en son kaydı tut, diğerlerini sil
+            unique_user_ids = set()
+            for member in result.data:
+                user_id = member.get('user_id')
+                if user_id and user_id not in unique_user_ids:
+                    unique_user_ids.add(user_id)
+                else:
+                    # Duplicate kaydı sil
+                    self.supabase.table('group_members').delete().eq('id', member['id']).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Duplicate üye temizleme hatası: {e}")
             return False
 
     # Bot ayarları (komut mesajları)
