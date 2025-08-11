@@ -510,7 +510,7 @@ def add_message():
 
 @app.route('/api/messages/<int:message_id>')
 def get_message(message_id):
-    """Belirli bir mesajı getirir"""
+    """Belirli bir mesajı getirir."""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error': 'unauthorized'}), 401
