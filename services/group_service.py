@@ -6,7 +6,6 @@ Bu dosya Telegram gruplarındaki işlemleri yönetir.
 from typing import List, Optional, Dict
 from aiogram import Bot
 from aiogram.types import ChatMember
-from aiogram.enums import ChatMemberStatus
 from config import Config
 
 class GroupService:
@@ -103,7 +102,7 @@ class GroupService:
                     'username': member.user.username,
                     'first_name': member.user.first_name,
                     'last_name': member.user.last_name,
-                    'status': member.status.value
+                    'status': member.status
                 })
             return members
             
@@ -111,134 +110,86 @@ class GroupService:
             print(f"Grup üyelerini getirme hatası: {e}")
             return []
     
-    async def check_user_in_group(self, user_id: int) -> bool:
+    async def get_chat_member(self, user_id: int) -> Optional[ChatMember]:
         """
-        Kullanıcının grupta olup olmadığını kontrol eder
+        Belirli bir kullanıcının grup üyeliğini getirir
         
         Args:
             user_id: Kullanıcı ID'si
             
         Returns:
-            Grupta olup olmadığı
+            ChatMember objesi veya None
         """
         try:
-            member = await self.bot.get_chat_member(
+            return await self.bot.get_chat_member(
                 chat_id=self.group_id,
                 user_id=user_id
             )
-            return member.status not in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]
-            
         except Exception as e:
-            print(f"Kullanıcı grup kontrolü hatası: {e}")
-            return False
+            print(f"Kullanıcı üyeliği getirme hatası: {e}")
+            return None
     
-    async def warn_user(self, user_id: int, message: str) -> bool:
+    async def is_user_member(self, user_id: int) -> bool:
         """
-        Kullanıcıyı uyarır
+        Kullanıcının grup üyesi olup olmadığını kontrol eder
         
         Args:
             user_id: Kullanıcı ID'si
-            message: Uyarı mesajı
             
         Returns:
-            Başarı durumu
+            Üye olup olmadığı
         """
         try:
-            await self.bot.send_message(
-                chat_id=user_id,
-                text=f"⚠️ **Uyarı:** {message}"
-            )
-            return True
-            
-        except Exception as e:
-            print(f"Kullanıcı uyarma hatası: {e}")
+            member = await self.get_chat_member(user_id)
+            if member:
+                # Aiogram 2.x'te status string olarak gelir
+                return member.status in ['member', 'administrator', 'creator']
             return False
-    
-    async def check_banned_words(self, message_text: str) -> List[str]:
-        """
-        Mesajda yasaklı kelimeleri kontrol eder
-        
-        Args:
-            message_text: Kontrol edilecek mesaj
-            
-        Returns:
-            Bulunan yasaklı kelimeler listesi
-        """
-        found_words = []
-        message_lower = message_text.lower()
-        
-        for word in Config.BANNED_WORDS:
-            if word.lower() in message_lower:
-                found_words.append(word)
-        
-        return found_words
+        except Exception as e:
+            print(f"Kullanıcı üyelik kontrolü hatası: {e}")
+            return False
     
     async def handle_banned_message(self, user_id: int, message_text: str) -> bool:
         """
-        Yasaklı kelime içeren mesajı işler
+        Yasaklı kelimeleri kontrol eder ve gerekirse uyarı verir
         
         Args:
             user_id: Kullanıcı ID'si
             message_text: Mesaj metni
             
         Returns:
-            Başarı durumu
+            Yasaklı kelime bulunup bulunmadığı
         """
-        try:
-            banned_words = await self.check_banned_words(message_text)
-            
-            if banned_words:
-                warning_message = f"⚠️ Mesajınızda yasaklı kelimeler bulundu: {', '.join(banned_words)}\n\nLütfen daha saygılı bir dil kullanın."
-                
-                await self.warn_user(user_id, warning_message)
-                
-                # Admin'e bildir
-                await self.notify_admin_banned_message(user_id, message_text, banned_words)
+        # Yasaklı kelimeler listesi
+        banned_words = [
+            'spam', 'reklam', 'satış', 'satis', 'satılık', 'satilik',
+            'kiralık', 'kiralik', 'iş', 'is', 'işçi', 'isci',
+            'yardım', 'yardim', 'bağış', 'bagis', 'bağış', 'bagis'
+        ]
+        
+        message_lower = message_text.lower()
+        
+        for word in banned_words:
+            if word in message_lower:
+                # Kullanıcıya uyarı gönder
+                try:
+                    await self.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            "⚠️ **Uyarı!**\n\n"
+                            "Grup kurallarına aykırı mesaj gönderdiniz. "
+                            "Lütfen grup kurallarına uyun.\n\n"
+                            "❌ **Yasaklı kelime:** " + word
+                        )
+                    )
+                except Exception as e:
+                    print(f"Uyarı gönderme hatası: {e}")
                 
                 return True
-            
-            return False
-            
-        except Exception as e:
-            print(f"Yasaklı mesaj işleme hatası: {e}")
-            return False
-    
-    async def notify_admin_banned_message(self, user_id: int, message_text: str, banned_words: List[str]) -> bool:
-        """
-        Admin'e yasaklı mesaj hakkında bildirim gönderir
         
-        Args:
-            user_id: Kullanıcı ID'si
-            message_text: Mesaj metni
-            banned_words: Yasaklı kelimeler
-            
-        Returns:
-            Başarı durumu
-        """
-        try:
-            for admin_id in Config.ADMIN_IDS:
-                notification = f"""
-🚨 **Yasaklı Mesaj Bildirimi**
-
-👤 **Kullanıcı:** {user_id}
-📝 **Mesaj:** {message_text[:100]}...
-🚫 **Yasaklı Kelimeler:** {', '.join(banned_words)}
-
-⚠️ Kullanıcı uyarıldı.
-                """
-                
-                await self.bot.send_message(
-                    chat_id=admin_id,
-                    text=notification
-                )
-            
-            return True
-            
-        except Exception as e:
-            print(f"Admin bildirimi hatası: {e}")
-            return False
+        return False
     
-    async def get_group_info(self) -> Optional[Dict]:
+    async def get_group_info(self) -> Dict:
         """
         Grup bilgilerini getirir
         
@@ -250,11 +201,72 @@ class GroupService:
             return {
                 'id': chat.id,
                 'title': chat.title,
-                'username': chat.username,
-                'member_count': chat.member_count,
-                'description': chat.description
+                'type': chat.type,
+                'member_count': chat.member_count if hasattr(chat, 'member_count') else None,
+                'description': chat.description if hasattr(chat, 'description') else None
             }
-            
         except Exception as e:
             print(f"Grup bilgisi getirme hatası: {e}")
-            return None
+            return {}
+    
+    async def send_group_message(self, message_text: str, parse_mode: str = "HTML") -> bool:
+        """
+        Gruba mesaj gönderir
+        
+        Args:
+            message_text: Mesaj metni
+            parse_mode: Parse modu (HTML, Markdown)
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            await self.bot.send_message(
+                chat_id=self.group_id,
+                text=message_text,
+                parse_mode=parse_mode
+            )
+            return True
+        except Exception as e:
+            print(f"Grup mesajı gönderme hatası: {e}")
+            return False
+    
+    async def pin_message(self, message_id: int) -> bool:
+        """
+        Mesajı sabitler
+        
+        Args:
+            message_id: Mesaj ID'si
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            await self.bot.pin_chat_message(
+                chat_id=self.group_id,
+                message_id=message_id
+            )
+            return True
+        except Exception as e:
+            print(f"Mesaj sabitleme hatası: {e}")
+            return False
+    
+    async def unpin_message(self, message_id: int) -> bool:
+        """
+        Mesajın sabitini kaldırır
+        
+        Args:
+            message_id: Mesaj ID'si
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            await self.bot.unpin_chat_message(
+                chat_id=self.group_id,
+                message_id=message_id
+            )
+            return True
+        except Exception as e:
+            print(f"Mesaj sabit kaldırma hatası: {e}")
+            return False

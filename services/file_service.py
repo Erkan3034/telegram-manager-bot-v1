@@ -36,29 +36,41 @@ class FileService:
             Dosya URL'i veya None
         """
         try:
+            print(f"DEBUG FileService: save_file çağrıldı - file_name: {file_name}, user_id: {user_id}, data_size: {len(file_data) if file_data else 'None'}")
+            
             # Dosya uzantısını kontrol et
             file_ext = os.path.splitext(file_name)[1].lower()
+            print(f"DEBUG FileService: file_ext: {file_ext}")
             if file_ext not in Config.ALLOWED_EXTENSIONS:
+                print(f"DEBUG FileService: Desteklenmeyen dosya türü: {file_ext}")
                 raise ValueError(f"Desteklenmeyen dosya türü: {file_ext}")
             
             # Dosya boyutunu kontrol et
             if len(file_data) > Config.MAX_FILE_SIZE:
+                print(f"DEBUG FileService: Dosya boyutu çok büyük: {len(file_data)} bytes")
                 raise ValueError(f"Dosya boyutu çok büyük: {len(file_data)} bytes")
             
             # Benzersiz dosya adı oluştur
             unique_name = f"{user_id}_{uuid.uuid4().hex}{file_ext}"
             file_path = os.path.join(self.upload_dir, unique_name)
+            print(f"DEBUG FileService: Dosya yolu: {file_path}")
             
             # Dosyayı kaydet
+            print(f"DEBUG FileService: Dosya kaydediliyor...")
             async with aiofiles.open(file_path, 'wb') as f:
                 await f.write(file_data)
+            print(f"DEBUG FileService: Dosya kaydedildi")
             
             # Dosya URL'ini döner (gerçek uygulamada CDN URL'i olacak)
             file_url = f"/uploads/{unique_name}"
+            print(f"DEBUG FileService: file_url döndürülüyor: {file_url}")
             return file_url
             
         except Exception as e:
-            print(f"Dosya kaydetme hatası: {e}")
+            print(f"DEBUG FileService: Exception yakalandı: {e}")
+            print(f"DEBUG FileService: Exception type: {type(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     async def delete_file(self, file_url: str) -> bool:

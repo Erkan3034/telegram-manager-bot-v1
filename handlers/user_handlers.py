@@ -3,12 +3,10 @@ Kullanıcı Handler'ları
 Bu dosya kullanıcı etkileşimlerini yönetir.
 """
 
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, FSInputFile
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram import Dispatcher, types
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import Dict, List
 import json
 from datetime import datetime
@@ -18,8 +16,6 @@ from config import Config
 from services.database import DatabaseService
 from services.file_service import FileService
 from services.group_service import GroupService
-
-router = Router()
 
 # FSM States
 class UserStates(StatesGroup):
@@ -36,7 +32,7 @@ class UserHandler:
         self.file_service = file_service
         self.group_service = group_service
     
-    async def start_command(self, message: Message, state: FSMContext):
+    async def start_command(self, message: types.Message, state: FSMContext):
         """Kullanıcı /start komutunu işler"""
         user_id = message.from_user.id
         username = message.from_user.username or message.from_user.first_name
@@ -120,7 +116,7 @@ Ama en önemlisi:
         for msg in default_messages:
             await self.db.add_message(**msg)
     
-    async def show_promotion(self, callback: CallbackQuery, state: FSMContext):
+    async def show_promotion(self, callback: types.CallbackQuery, state: FSMContext):
         """Tanıtım mesajını gösterir (artık kullanılmıyor)"""
         # Bu metod artık kullanılmıyor, mesajlar direkt start_command'da gösteriliyor
         await callback.message.edit_text("✅ Tanıtım tamamlandı! Şimdi sorulara geçiyoruz...")
@@ -128,21 +124,21 @@ Ama en önemlisi:
         # Sorulara başla
         await self.start_questions(callback.message, state)
     
-    async def start_questions(self, message: Message, state: FSMContext):
+    async def start_questions(self, message: types.Message, state: FSMContext):
         """Ana menüyü gösterir"""
         # Ana menü butonlarını oluştur
-        keyboard = InlineKeyboardBuilder()
-        keyboard.button(text="❓ Sorulara Başla", callback_data="start_questions")
-        keyboard.button(text="❓ SSS", callback_data="show_sss")
-        keyboard.adjust(1)  # Her satırda 1 buton
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❓ Sorulara Başla", callback_data="start_questions")],
+            [InlineKeyboardButton(text="❓ SSS", callback_data="show_sss")]
+        ])
         
         await message.answer(
             "🎯 **Ana Menü**\n\n"
             "Aşağıdaki seçeneklerden birini seçin:",
-            reply_markup=keyboard.as_markup()
+            reply_markup=keyboard
         )
     
-    async def show_sss(self, callback: CallbackQuery, state: FSMContext):
+    async def show_sss(self, callback: types.CallbackQuery, state: FSMContext):
         """SSS mesajını gösterir"""
         # Veritabanından SSS mesajını yükle
         sss_messages = await self.db.get_messages_by_type('sss')
@@ -185,7 +181,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
         
         await self.db.add_message(**default_sss_message)
     
-    async def start_questions_flow(self, callback: CallbackQuery, state: FSMContext):
+    async def start_questions_flow(self, callback: types.CallbackQuery, state: FSMContext):
         """Sorulara başlar"""
         questions = await self.db.get_questions()
         
@@ -197,7 +193,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
         
         # İlk soruyu sor
         if questions:
-            await state.set_state(UserStates.answering_questions)
+            await state.set_state("answering_questions")
             await state.update_data(current_question_index=0, questions=questions)
             
             question = questions[0]
@@ -207,7 +203,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
         
         await callback.answer()
     
-    async def handle_answer(self, message: Message, state: FSMContext):
+    async def handle_answer(self, message: types.Message, state: FSMContext):
         """Kullanıcı cevabını işler"""
         user_id = message.from_user.id
         data = await state.get_data()
@@ -235,7 +231,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             # Sorular bitti, ödeme kısmına geç
             await self.show_payment(message, state)
     
-    async def show_payment(self, message: Message, state: FSMContext):
+    async def show_payment(self, message: types.Message, state: FSMContext):
         """Ödeme kısmını gösterir"""
         # Veritabanından ödeme mesajlarını yükle
         payment_messages = await self.db.get_payment_messages()
@@ -256,14 +252,14 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
                 await asyncio.sleep(msg.get('delay', 1.0))
         
         # Ödeme mesajlarından sonra butonları göster
-        keyboard = InlineKeyboardBuilder()
-        keyboard.button(text="📎 Ödeme Dekontu Ekle(ss veya pdf)", callback_data="add_receipt")
-        keyboard.adjust(1)  # Her satırda 1 buton
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📎 Ödeme Dekontu Ekle(ss veya pdf)", callback_data="add_receipt")]
+        ])
         
         await message.answer(
             "💳Ödeme Sonrası İşlemler\n\n"
             "Ödemenizi yaptıysanız aşağıdaki butonlardan birini seçin:",
-            reply_markup=keyboard.as_markup()
+            reply_markup=keyboard
         )
 
     async def _create_default_payment_messages(self):
@@ -296,7 +292,7 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         for msg in default_payment_messages:
             await self.db.add_message(**msg)
 
-    async def _show_payment_link(self, message: Message):
+    async def _show_payment_link(self, message: types.Message):
         """Ödeme linkini gösterir - artık kullanılmıyor, mesaj içeriğinde entegre edildi"""
         pass
 
@@ -318,7 +314,7 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         
         return formatted_content
     
-    async def payment_done(self, callback: CallbackQuery, state: FSMContext):
+    async def payment_done(self, callback: types.CallbackQuery, state: FSMContext):
         """Ödeme yapıldı butonuna tıklandığında"""
         user_id = callback.from_user.id
         
@@ -329,19 +325,32 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         
         await state.clear()
     
-    async def add_receipt(self, callback: CallbackQuery, state: FSMContext):
+    async def add_receipt(self, callback: types.CallbackQuery, state: FSMContext):
         """Dekont ekleme butonuna tıklandığında"""
+        print(f"DEBUG: add_receipt çağrıldı - User ID: {callback.from_user.id}")
+        
         await callback.message.edit_text(
             "📎 Lütfen ödeme dekontunuzu (PDF, JPG, PNG) gönderin.\n\n"
             "💡 **İpucu:** Dekontunuzu fotoğraf olarak çekip gönderebilirsiniz."
         )
-        await state.set_state(UserStates.waiting_for_receipt)
+        
+        print(f"DEBUG: State set ediliyor: waiting_for_receipt")
+        await state.set_state("waiting_for_receipt")
+        
+        # State'i kontrol et
+        current_state = await state.get_state()
+        print(f"DEBUG: Current state: {current_state}")
+        
+        await callback.answer()
     
-    async def handle_receipt(self, message: Message, state: FSMContext):
+    async def handle_receipt(self, message: types.Message, state: FSMContext):
         """Dekont dosyasını işler"""
         user_id = message.from_user.id
+        current_state = await state.get_state()
+        print(f"DEBUG: handle_receipt çağrıldı - User ID: {user_id}, Current State: {current_state}")
         
         if not message.document and not message.photo:
+            print(f"DEBUG: Geçersiz dosya türü - Document: {message.document}, Photo: {message.photo}")
             await message.answer("❌ Lütfen geçerli bir dosya gönderin (PDF, JPG, PNG).")
             return
         
@@ -351,41 +360,62 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
                 file = message.document
                 file_name = file.file_name
                 file_id = file.file_id
+                print(f"DEBUG: Document dosyası - Name: {file_name}, ID: {file_id}")
             else:
                 # Fotoğraf
                 photo = message.photo[-1]
                 file_id = photo.file_id
                 file_name = f"receipt_{user_id}_{photo.file_id}.jpg"
+                print(f"DEBUG: Photo dosyası - Name: {file_name}, ID: {file_id}")
             
             # Dosyayı indir
+            print(f"DEBUG: Dosya indiriliyor...")
             file_info = await message.bot.get_file(file_id)
             file_data = await message.bot.download_file(file_info.file_path)
+            print(f"DEBUG: Dosya indirildi - Boyut: {len(file_data.read()) if hasattr(file_data, 'read') else 'N/A'}")
+            
+            # Dosya pointer'ı başa al
+            if hasattr(file_data, 'seek'):
+                file_data.seek(0)
             
             # Dosyayı kaydet
+            print(f"DEBUG: FileService.save_file çağrılıyor...")
             file_url = await self.file_service.save_file(
-                file_data.read(),
+                file_data.read() if hasattr(file_data, 'read') else file_data,
                 file_name,
                 user_id
             )
+            print(f"DEBUG: FileService.save_file sonucu: {file_url}")
             
             if file_url:
                 # Dekontu veritabanına kaydet
-                await self.db.save_receipt(user_id, file_url, file_name)
+                print(f"DEBUG: DatabaseService.save_receipt çağrılıyor...")
+                receipt_result = await self.db.save_receipt(user_id, file_url, file_name)
+                print(f"DEBUG: DatabaseService.save_receipt sonucu: {receipt_result}")
                 
+                print(f"DEBUG: Başarı mesajı gönderiliyor...")
                 await message.answer(
                     "✅ Dekontunuz başarıyla yüklendi!\n\n"
                     "📋 Admin onayı bekleniyor. Onaylandıktan sonra gruba davet edileceksiniz."
                 )
+                print(f"DEBUG: Başarı mesajı gönderildi")
                 
                 # Admin'e bildir
+                print(f"DEBUG: Admin bildirimi gönderiliyor...")
                 await self.notify_admin_receipt(user_id, file_name, message.bot)
+                print(f"DEBUG: Admin bildirimi gönderildi")
                 
                 await state.clear()
+                print(f"DEBUG: State temizlendi")
             else:
+                print(f"DEBUG: FileService.save_file None döndü")
                 await message.answer("❌ Dosya yükleme hatası. Lütfen tekrar deneyin.")
                 
         except Exception as e:
-            print(f"Dekont işleme hatası: {e}")
+            print(f"DEBUG: Exception yakalandı: {e}")
+            print(f"DEBUG: Exception type: {type(e)}")
+            import traceback
+            traceback.print_exc()
             await message.answer("❌ Dosya işleme hatası. Lütfen tekrar deneyin.")
     
     async def notify_admin_payment(self, user_id: int, bot):
@@ -432,57 +462,88 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         except Exception as e:
             print(f"Admin dekont bildirimi hatası: {e}")
 
-# Router'a handler'ları ekle
-@router.message(Command("start"))
-async def start_command(message: Message, state: FSMContext):
+def dp(bot, dispatcher):
+    """Dispatcher'a handler'ları ekler"""
+    # Message handlers - Tüm mesajları yakala, içeride state kontrolü yap
+    dispatcher.register_message_handler(start_command, commands=["start"])
+    dispatcher.register_message_handler(help_command, commands=["help"])
+    dispatcher.register_message_handler(handle_all_messages)  # Tüm mesajları yakala
+    
+    # Callback query handlers
+    dispatcher.register_callback_query_handler(show_promotion, lambda c: c.data == "show_promotion", state="*")
+    dispatcher.register_callback_query_handler(payment_done, lambda c: c.data == "payment_done", state="*")
+    dispatcher.register_callback_query_handler(add_receipt, lambda c: c.data == "add_receipt", state="*")
+    dispatcher.register_callback_query_handler(show_sss, lambda c: c.data == "show_sss", state="*")
+    dispatcher.register_callback_query_handler(start_questions_flow, lambda c: c.data == "start_questions", state="*")
+
+# Handler fonksiyonları
+async def start_command(message: types.Message, state: FSMContext):
     """Start komutu handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
     await handler.start_command(message, state)
 
-@router.callback_query(F.data == "show_promotion")
-async def show_promotion(callback: CallbackQuery, state: FSMContext):
+async def show_promotion(callback: types.CallbackQuery, state: FSMContext):
     """Tanıtım gösterme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.show_promotion(callback, state)
 
-@router.message(UserStates.answering_questions)
-async def handle_answer(message: Message, state: FSMContext):
+async def handle_answer(message: types.Message, state: FSMContext):
     """Cevap işleme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
     await handler.handle_answer(message, state)
 
-@router.callback_query(F.data == "payment_done")
-async def payment_done(callback: CallbackQuery, state: FSMContext):
+async def payment_done(callback: types.CallbackQuery, state: FSMContext):
     """Ödeme yapıldı handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.payment_done(callback, state)
 
-@router.callback_query(F.data == "add_receipt")
-async def add_receipt(callback: CallbackQuery, state: FSMContext):
+async def add_receipt(callback: types.CallbackQuery, state: FSMContext):
     """Dekont ekleme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.add_receipt(callback, state)
 
-@router.message(UserStates.waiting_for_receipt)
-async def handle_receipt(message: Message, state: FSMContext):
+async def handle_receipt(message: types.Message, state: FSMContext):
     """Dekont işleme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
     await handler.handle_receipt(message, state)
 
-@router.callback_query(F.data == "show_sss")
-async def show_sss(callback: CallbackQuery, state: FSMContext):
+async def show_sss(callback: types.CallbackQuery, state: FSMContext):
     """SSS gösterme handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.show_sss(callback, state)
 
-@router.callback_query(F.data == "start_questions")
-async def start_questions_flow(callback: CallbackQuery, state: FSMContext):
+async def start_questions_flow(callback: types.CallbackQuery, state: FSMContext):
     """Sorulara başlama handler'ı"""
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.start_questions_flow(callback, state)
 
-@router.message(Command("help"))
-async def help_command(message: Message):
+async def handle_all_messages(message: types.Message, state: FSMContext):
+    """Tüm mesajları yakalar ve state'e göre yönlendirir"""
+    current_state = await state.get_state()
+    print(f"DEBUG: handle_all_messages çağrıldı!")
+    print(f"DEBUG: Message type: {message.content_type}")
+    print(f"DEBUG: Message text: {message.text}")
+    print(f"DEBUG: Current state: {current_state}")
+    print(f"DEBUG: User ID: {message.from_user.id}")
+    
+    # Handler instance'ı oluştur
+    handler = UserHandler()
+    print(f"DEBUG: Handler instance oluşturuldu")
+    
+    if current_state == "answering_questions":
+        print(f"DEBUG: answering_questions state'inde, handle_answer çağrılıyor...")
+        # Soru cevaplama state'inde
+        await handler.handle_answer(message, state)
+    elif current_state == "waiting_for_receipt":
+        print(f"DEBUG: waiting_for_receipt state'inde, handle_receipt çağrılıyor...")
+        # Dekont bekleme state'inde
+        await handler.handle_receipt(message, state)
+    else:
+        # State yoksa veya bilinmeyen state'de
+        print(f"DEBUG: Bilinmeyen state: {current_state}")
+        print(f"DEBUG: Mesaj işlenmedi")
+
+async def help_command(message: types.Message):
     db = DatabaseService()
     settings = await db.get_bot_settings()
     text = settings.get('help_message') or "Yardım: /start, /admin, /help"

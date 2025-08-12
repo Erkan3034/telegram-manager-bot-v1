@@ -6,14 +6,14 @@ Bu dosya botun giriş noktasıdır.
 import asyncio
 import logging
 import json
-from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from config import Config
-from handlers.user_handlers import router as user_router
-from handlers.admin_handlers import router as admin_router
-from handlers.group_handlers import router as group_router
+from handlers.user_handlers import dp as user_dp
+from handlers.admin_handlers import dp as admin_dp
+from handlers.group_handlers import dp as group_dp
 from services.database import DatabaseService
 from services.group_service import GroupService
 
@@ -96,32 +96,33 @@ async def main():
     
     # Storage seçimi (Redis varsa Redis, yoksa Memory)
     try:
-        from aiogram.fsm.storage.redis import RedisStorage2
-        storage = RedisStorage2.from_url("redis://localhost:6379/0")
+        from aiogram.contrib.fsm_storage.redis import RedisStorage2
+        storage = RedisStorage2(host='localhost', port=6379, db=0)
         logger.info("Redis storage kullanılıyor.")
     except ImportError:
         storage = MemoryStorage()
         logger.info("Memory storage kullanılıyor.")
     
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher(bot, storage=storage)
     
-    # Router'ları ekle
-    dp.include_router(user_router)
-    dp.include_router(admin_router)
-    dp.include_router(group_router)
-    
-    # Startup ve shutdown event'lerini ekle
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
+    # Handler'ları ekle
+    user_dp(bot, dp)
+    admin_dp(bot, dp)
+    group_dp(bot, dp)
     
     # Bot'u başlat
     try:
-        await dp.start_polling(bot)
+        # Startup işlemlerini yap
+        await on_startup(bot)
+        
+        await dp.start_polling()
     except KeyboardInterrupt:
         logger.info("Bot durduruldu.")
     except Exception as e:
         logger.error(f"Bot çalışırken hata oluştu: {e}")
     finally:
+        # Shutdown işlemlerini yap
+        await on_shutdown(bot)
         await bot.session.close()
 
 if __name__ == "__main__":

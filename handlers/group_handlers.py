@@ -3,17 +3,12 @@ Grup Handler'ları
 Bu dosya grup mesajlarını ve yasaklı kelimeleri yönetir.
 """
 
-from aiogram import Router, F
-from aiogram.types import Message
-from aiogram.enums import ChatType
+from aiogram import Dispatcher, types
 
 from config import Config
 from services.group_service import GroupService
 
-router = Router()
-
-@router.message(F.chat.type == ChatType.SUPERGROUP)
-async def handle_group_message(message: Message):
+async def handle_group_message(message: types.Message):
     """Grup mesajlarını işler"""
     # Bot mesajlarını yoksay
     if message.from_user.is_bot:
@@ -33,8 +28,7 @@ async def handle_group_message(message: Message):
         except:
             pass  # Bot yönetici değilse mesajı silemez
 
-@router.message(F.chat.type == ChatType.GROUP)
-async def handle_group_message_group(message: Message):
+async def handle_group_message_group(message: types.Message):
     """Normal grup mesajlarını işler"""
     # Bot mesajlarını yoksay
     if message.from_user.is_bot:
@@ -53,3 +47,9 @@ async def handle_group_message_group(message: Message):
             await message.delete()
         except:
             pass  # Bot yönetici değilse mesajı silemez
+
+def dp(bot, dispatcher):
+    """Dispatcher'a group handler'ları ekler"""
+    # Supergroup ve group mesajları için handler'lar
+    dispatcher.register_message_handler(handle_group_message, content_types=['text'], chat_type='supergroup')
+    dispatcher.register_message_handler(handle_group_message_group, content_types=['text'], chat_type='group')
