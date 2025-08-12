@@ -1,6 +1,6 @@
-aiogram==3.3.0  # biraz eski versiyon, pydantic 1.x destekliyor olabilir, dene
+aiogram==3.2.2        # pydantic 1.x destekleyen eski sürüm
 python-dotenv==1.0.0
-supabase==2.15.0  # biraz eski versiyon
+supabase==2.10.0      # pydantic 1.x destekleyen eski sürüm
 flask==3.0.0
 flask-cors==4.0.0
 aiofiles==23.2.1
@@ -9,4 +9,3 @@ python-multipart==0.0.6
 websockets==15.0.1
 passlib[bcrypt]==1.7.4
 gunicorn==21.2.0
-
