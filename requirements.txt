@@ -1,13 +1,27 @@
+# Telegram Bot ve Web Uygulaması Bağımlılıkları
+# Python 3.8+ için uyumlu sürümler
+
+# Telegram Bot Framework
 aiogram==3.4.1
+
+# Environment Variables
 python-dotenv==1.0.0
+
+# Database
 supabase==2.18.0
+
+# Web Framework
 flask==3.0.0
 flask-cors==4.0.0
-python-telegram-bot==20.7
-aiofiles==23.2.1
-Pillow==10.4.0
-python-multipart==0.0.6
-httpx==0.28.1
-websockets==15.0.1
+
+# Password Hashing
 passlib[bcrypt]==1.7.4
+
+# Async File Operations
+aiofiles==23.2.1
+
+# Image Processing
+Pillow==10.4.0
+
+# WSGI Server (Production)
 gunicorn==21.2.0
