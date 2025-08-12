@@ -1,14 +1,17 @@
 # Telegram Bot ve Web Uygulaması Bağımlılıkları
 # Python 3.8+ için uyumlu sürümler
 
+# Pydantic - Tüm paketler için uyumlu sürüm
+pydantic>=2.4.1,<2.6
+
 # Telegram Bot Framework
 aiogram==3.4.1
 
 # Environment Variables
 python-dotenv==1.0.0
 
-# Database
-supabase==2.18.0
+# Database - Pydantic 2.x ile uyumlu sürüm
+supabase==2.3.0
 
 # Web Framework
 flask==3.0.0
