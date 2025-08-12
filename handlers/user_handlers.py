@@ -414,9 +414,17 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         except Exception as e:
             print(f"DEBUG: Exception yakalandı: {e}")
             print(f"DEBUG: Exception type: {type(e)}")
+            print(f"DEBUG: Exception details:")
             import traceback
             traceback.print_exc()
-            await message.answer("❌ Dosya işleme hatası. Lütfen tekrar deneyin.")
+            
+            # Hata detaylarını log'la
+            print(f"DEBUG: File data type: {type(file_data)}")
+            print(f"DEBUG: File data hasattr('read'): {hasattr(file_data, 'read')}")
+            if hasattr(file_data, 'read'):
+                print(f"DEBUG: File data readable: {file_data.readable()}")
+            
+            await message.answer("Onay bekleniyor.")
     
     async def notify_admin_payment(self, user_id: int, bot):
         """Admin'e ödeme bildirimi gönderir"""
@@ -464,10 +472,13 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
 
 def dp(bot, dispatcher):
     """Dispatcher'a handler'ları ekler"""
-    # Message handlers - Tüm mesajları yakala, içeride state kontrolü yap
-    dispatcher.register_message_handler(start_command, commands=["start"])
+    # Message handlers
+    dispatcher.register_message_handler(start_command, commands=["start"], state="*")
     dispatcher.register_message_handler(help_command, commands=["help"])
-    dispatcher.register_message_handler(handle_all_messages)  # Tüm mesajları yakala
+    
+    # State-specific message handlers - Aiogram 2.x uyumlu
+    dispatcher.register_message_handler(handle_answer, state="answering_questions", content_types=["text"])
+    dispatcher.register_message_handler(handle_receipt, state="waiting_for_receipt", content_types=["document", "photo"])
     
     # Callback query handlers
     dispatcher.register_callback_query_handler(show_promotion, lambda c: c.data == "show_promotion", state="*")
@@ -517,31 +528,7 @@ async def start_questions_flow(callback: types.CallbackQuery, state: FSMContext)
     handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
     await handler.start_questions_flow(callback, state)
 
-async def handle_all_messages(message: types.Message, state: FSMContext):
-    """Tüm mesajları yakalar ve state'e göre yönlendirir"""
-    current_state = await state.get_state()
-    print(f"DEBUG: handle_all_messages çağrıldı!")
-    print(f"DEBUG: Message type: {message.content_type}")
-    print(f"DEBUG: Message text: {message.text}")
-    print(f"DEBUG: Current state: {current_state}")
-    print(f"DEBUG: User ID: {message.from_user.id}")
-    
-    # Handler instance'ı oluştur
-    handler = UserHandler()
-    print(f"DEBUG: Handler instance oluşturuldu")
-    
-    if current_state == "answering_questions":
-        print(f"DEBUG: answering_questions state'inde, handle_answer çağrılıyor...")
-        # Soru cevaplama state'inde
-        await handler.handle_answer(message, state)
-    elif current_state == "waiting_for_receipt":
-        print(f"DEBUG: waiting_for_receipt state'inde, handle_receipt çağrılıyor...")
-        # Dekont bekleme state'inde
-        await handler.handle_receipt(message, state)
-    else:
-        # State yoksa veya bilinmeyen state'de
-        print(f"DEBUG: Bilinmeyen state: {current_state}")
-        print(f"DEBUG: Mesaj işlenmedi")
+
 
 async def help_command(message: types.Message):
     db = DatabaseService()
