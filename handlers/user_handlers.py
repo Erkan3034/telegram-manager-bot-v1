@@ -323,7 +323,7 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         # Admin'e bildir
         await self.notify_admin_payment(user_id, callback.message.bot)
         
-        await state.clear()
+        await state.finish()
     
     async def add_receipt(self, callback: types.CallbackQuery, state: FSMContext):
         """Dekont ekleme butonuna tıklandığında"""
@@ -405,7 +405,7 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
                 await self.notify_admin_receipt(user_id, file_name, message.bot)
                 print(f"DEBUG: Admin bildirimi gönderildi")
                 
-                await state.clear()
+                await state.finish()
                 print(f"DEBUG: State temizlendi")
             else:
                 print(f"DEBUG: FileService.save_file None döndü")
