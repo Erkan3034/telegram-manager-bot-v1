@@ -446,10 +446,8 @@ def bot_apply_commands():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/uploads/<path:filename>')
-def uploaded_file(filename):
-    """Yüklenen dosyaları serve eder"""
-    return send_from_directory('uploads', filename)
+# Artık Supabase Storage kullanıldığı için bu route kaldırıldı
+# Dosyalar doğrudan Supabase Storage'dan erişilebilir
 
 @app.errorhandler(404)
 def not_found(error):

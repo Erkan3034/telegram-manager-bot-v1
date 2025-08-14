@@ -15,6 +15,7 @@ from handlers.user_handlers import dp as user_dp
 from handlers.admin_handlers import dp as admin_dp
 from handlers.group_handlers import dp as group_dp
 from services.database import DatabaseService
+from services.storage_service import StorageService
 from services.group_service import GroupService
 
 # Logging ayarları
@@ -81,6 +82,15 @@ async def on_startup(bot: Bot):
         logger.info(f"Veritabanı bağlantısı başarılı. {len(questions)} soru bulundu.")
     except Exception as e:
         logger.error(f"Veritabanı bağlantı hatası: {e}")
+        return
+    
+    # Storage servisini başlat ve bucket'ı kontrol et
+    try:
+        storage = StorageService()
+        await storage.ensure_bucket_exists()
+        logger.info("Supabase Storage bağlantısı başarılı.")
+    except Exception as e:
+        logger.error(f"Storage bağlantı hatası: {e}")
         return
     
     logger.info("Bot başarıyla başlatıldı!")

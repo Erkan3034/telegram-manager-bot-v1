@@ -41,7 +41,7 @@ telegram-manager-bot/
 │   └── group_handlers.py # Grup handler'ları
 ├── services/             # Servis dosyaları
 │   ├── database.py       # Supabase veritabanı servisi
-│   ├── file_service.py   # Dosya yönetimi servisi
+│   ├── storage_service.py # Supabase Storage servisi
 │   └── group_service.py  # Grup yönetimi servisi
 ├── templates/            # Flask template'leri
 │   ├── index.html        # Ana sayfa
@@ -49,7 +49,7 @@ telegram-manager-bot/
 ├── static/              # Statik dosyalar
 │   ├── css/             # CSS dosyaları
 │   └── js/              # JavaScript dosyaları
-└── uploads/             # Yüklenen dosyalar
+# Artık Supabase Storage kullanılıyor - dosyalar cloud'da saklanıyor
 ```
 
 ## 🛠️ Kurulum
@@ -89,9 +89,19 @@ FLASK_ENV=development
 SHOPIER_PAYMENT_URL=https://www.shopier.com/payment/example
 ```
 
-### 4. Supabase Veritabanı Kurulumu
+### 4. Supabase Kurulumu
 
+#### Veritabanı Tabloları
 Supabase'de aşağıdaki tabloları oluşturun:
+
+#### Storage Bucket
+Supabase Storage'da `receipts` adında public bir bucket oluşturun:
+
+1. Supabase Dashboard → Storage → New Bucket
+2. Bucket name: `receipts`
+3. Public bucket: ✅ (işaretleyin)
+4. File size limit: 10MB
+5. Allowed MIME types: image/*, application/pdf
 
 #### Users Tablosu
 ```sql

@@ -17,8 +17,8 @@ flask-cors==4.0.0
 # Password Hashing
 passlib[bcrypt]==1.7.4
 
-# Async File Operations - Python 3.11 uyumlu
-aiofiles==23.2.1
+# Async File Operations - Python 3.11 uyumlu (artık gerekli değil)
+# aiofiles==23.2.1
 
 # Image Processing - Python 3.11.7 uyumlu
 Pillow==9.5.0

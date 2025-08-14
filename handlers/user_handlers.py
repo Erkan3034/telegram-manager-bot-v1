@@ -14,7 +14,7 @@ import asyncio
 
 from config import Config
 from services.database import DatabaseService
-from services.file_service import FileService
+from services.storage_service import StorageService
 from services.group_service import GroupService
 
 # FSM States
@@ -27,9 +27,9 @@ class UserStates(StatesGroup):
 class UserHandler:
     """Kullanıcı handler sınıfı"""
     
-    def __init__(self, database: DatabaseService, file_service: FileService, group_service: GroupService):
+    def __init__(self, database: DatabaseService, storage_service: StorageService, group_service: GroupService):
         self.db = database
-        self.file_service = file_service
+        self.storage_service = storage_service
         self.group_service = group_service
     
     async def start_command(self, message: types.Message, state: FSMContext):
@@ -378,14 +378,14 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
             if hasattr(file_data, 'seek'):
                 file_data.seek(0)
             
-            # Dosyayı kaydet
-            print(f"DEBUG: FileService.save_file çağrılıyor...")
-            file_url = await self.file_service.save_file(
+            # Dosyayı Supabase Storage'a yükle
+            print(f"DEBUG: StorageService.upload_file çağrılıyor...")
+            file_url = await self.storage_service.upload_file(
                 file_data.read() if hasattr(file_data, 'read') else file_data,
                 file_name,
                 user_id
             )
-            print(f"DEBUG: FileService.save_file sonucu: {file_url}")
+            print(f"DEBUG: StorageService.upload_file sonucu: {file_url}")
             
             if file_url:
                 # Dekontu veritabanına kaydet
@@ -408,7 +408,7 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
                 await state.finish()
                 print(f"DEBUG: State temizlendi")
             else:
-                print(f"DEBUG: FileService.save_file None döndü")
+                print(f"DEBUG: StorageService.upload_file None döndü")
                 await message.answer("❌ Dosya yükleme hatası. Lütfen tekrar deneyin.")
                 
         except Exception as e:
@@ -490,42 +490,42 @@ def dp(bot, dispatcher):
 # Handler fonksiyonları
 async def start_command(message: types.Message, state: FSMContext):
     """Start komutu handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(message.bot))
     await handler.start_command(message, state)
 
 async def show_promotion(callback: types.CallbackQuery, state: FSMContext):
     """Tanıtım gösterme handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(callback.message.bot))
     await handler.show_promotion(callback, state)
 
 async def handle_answer(message: types.Message, state: FSMContext):
     """Cevap işleme handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(message.bot))
     await handler.handle_answer(message, state)
 
 async def payment_done(callback: types.CallbackQuery, state: FSMContext):
     """Ödeme yapıldı handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(callback.message.bot))
     await handler.payment_done(callback, state)
 
 async def add_receipt(callback: types.CallbackQuery, state: FSMContext):
     """Dekont ekleme handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(callback.message.bot))
     await handler.add_receipt(callback, state)
 
 async def handle_receipt(message: types.Message, state: FSMContext):
     """Dekont işleme handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(message.bot))
     await handler.handle_receipt(message, state)
 
 async def show_sss(callback: types.CallbackQuery, state: FSMContext):
     """SSS gösterme handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(callback.message.bot))
     await handler.show_sss(callback, state)
 
 async def start_questions_flow(callback: types.CallbackQuery, state: FSMContext):
     """Sorulara başlama handler'ı"""
-    handler = UserHandler(DatabaseService(), FileService(), GroupService(callback.message.bot))
+    handler = UserHandler(DatabaseService(), StorageService(), GroupService(callback.message.bot))
     await handler.start_questions_flow(callback, state)
 
 
