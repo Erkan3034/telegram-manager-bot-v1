@@ -13,7 +13,7 @@ import json
 from services.database import DatabaseService
 from passlib.hash import bcrypt
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='assets', static_url_path='/static')
 app.config['SECRET_KEY'] = Config.FLASK_SECRET_KEY
 CORS(app)
 

@@ -1,11 +1,12 @@
 """
 Admin Handler'ları
 Bu dosya admin işlemlerini yönetir.
+aiogram 3.x uyumlu
 """
 
-from aiogram import Dispatcher, types
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram import Router, types, F, Bot
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import Dict, List
 import json
@@ -13,6 +14,9 @@ import json
 from config import Config
 from services.database import DatabaseService
 from services.group_service import GroupService
+
+# Router oluştur
+router = Router()
 
 # FSM States
 class AdminStates(StatesGroup):
@@ -188,7 +192,7 @@ class AdminHandler:
         
         await callback.message.edit_text(text, reply_markup=keyboard)
     
-    async def approve_payment(self, callback: types.CallbackQuery):
+    async def approve_payment(self, callback: types.CallbackQuery, bot: Bot):
         """Ödemeyi onaylar"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
@@ -205,7 +209,7 @@ class AdminHandler:
                 user_id = payment['user_id']
                 # Sadece dekont onayı ile gruba alınacak; kullanıcıdan dekont talep et
                 try:
-                    await callback.message.bot.send_message(
+                    await bot.send_message(
                         chat_id=user_id,
                         text=(
                             "💳 Ödemeniz alındı.\n\n"
@@ -223,7 +227,7 @@ class AdminHandler:
         # Ödemeleri yeniden göster
         await self.show_payments(callback)
     
-    async def reject_payment(self, callback: types.CallbackQuery):
+    async def reject_payment(self, callback: types.CallbackQuery, bot: Bot):
         """Ödemeyi reddeder"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
@@ -239,7 +243,7 @@ class AdminHandler:
             payment = await self.db.get_payment(payment_id)
             if payment:
                 user_id = payment['user_id']
-                await callback.message.bot.send_message(
+                await bot.send_message(
                     chat_id=user_id,
                     text="❌ Ödemeniz reddedildi. Lütfen admin ile iletişime geçin."
                 )
@@ -251,7 +255,7 @@ class AdminHandler:
         # Ödemeleri yeniden göster
         await self.show_payments(callback)
     
-    async def approve_receipt(self, callback: types.CallbackQuery):
+    async def approve_receipt(self, callback: types.CallbackQuery, bot: Bot):
         """Dekontu onaylar"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
@@ -279,7 +283,7 @@ class AdminHandler:
         # Ödemeleri yeniden göster
         await self.show_payments(callback)
     
-    async def reject_receipt(self, callback: types.CallbackQuery):
+    async def reject_receipt(self, callback: types.CallbackQuery, bot: Bot):
         """Dekontu reddeder"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
@@ -295,7 +299,7 @@ class AdminHandler:
             receipt = await self.db.get_receipt(receipt_id)
             if receipt:
                 user_id = receipt['user_id']
-                await callback.message.bot.send_message(
+                await bot.send_message(
                     chat_id=user_id,
                     text="❌ Dekontunuz reddedildi. Lütfen admin ile iletişime geçin."
                 )
@@ -382,93 +386,87 @@ class AdminHandler:
         
         await callback.message.edit_text(text, reply_markup=keyboard)
 
-def dp(bot, dispatcher):
-    """Dispatcher'a admin handler'ları ekler"""
-    # Message handlers
-    dispatcher.register_message_handler(admin_panel, commands=["admin"])
-    dispatcher.register_message_handler(handle_new_question, state=AdminStates.adding_question)
-    
-    # Callback query handlers
-    dispatcher.register_callback_query_handler(admin_panel_callback, lambda c: c.data == "admin_panel")
-    dispatcher.register_callback_query_handler(show_questions, lambda c: c.data == "admin_questions")
-    dispatcher.register_callback_query_handler(add_question_form, lambda c: c.data == "add_question")
-    dispatcher.register_callback_query_handler(delete_question, lambda c: c.data and c.data.startswith("delete_question_"))
-    dispatcher.register_callback_query_handler(show_payments, lambda c: c.data == "admin_payments")
-    dispatcher.register_callback_query_handler(approve_payment, lambda c: c.data and c.data.startswith("approve_payment_"))
-    dispatcher.register_callback_query_handler(reject_payment, lambda c: c.data and c.data.startswith("reject_payment_"))
-    dispatcher.register_callback_query_handler(approve_receipt, lambda c: c.data and c.data.startswith("approve_receipt_"))
-    dispatcher.register_callback_query_handler(reject_receipt, lambda c: c.data and c.data.startswith("reject_receipt_"))
-    dispatcher.register_callback_query_handler(show_members, lambda c: c.data == "admin_members")
-    dispatcher.register_callback_query_handler(remove_member, lambda c: c.data and c.data.startswith("remove_member_"))
-    dispatcher.register_callback_query_handler(show_stats, lambda c: c.data == "admin_stats")
-
 # Handler fonksiyonları
-async def admin_panel(message: types.Message):
+@router.message(F.text == "/admin")
+async def admin_panel(message: types.Message, bot: Bot):
     """Admin paneli handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.admin_panel(message)
 
-async def admin_panel_callback(callback: types.CallbackQuery):
+@router.callback_query(F.data == "admin_panel")
+async def admin_panel_callback(callback: types.CallbackQuery, bot: Bot):
     """Admin paneli callback handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.admin_panel(callback.message)
 
-async def show_questions(callback: types.CallbackQuery):
+@router.callback_query(F.data == "admin_questions")
+async def show_questions(callback: types.CallbackQuery, bot: Bot):
     """Soruları gösterme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.show_questions(callback)
 
-async def add_question_form(callback: types.CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "add_question")
+async def add_question_form(callback: types.CallbackQuery, state: FSMContext, bot: Bot):
     """Soru ekleme formu handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.add_question_form(callback, state)
 
-async def handle_new_question(message: types.Message, state: FSMContext):
+@router.message(AdminStates.adding_question)
+async def handle_new_question(message: types.Message, state: FSMContext, bot: Bot):
     """Yeni soru işleme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.handle_new_question(message, state)
 
-async def delete_question(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("delete_question_"))
+async def delete_question(callback: types.CallbackQuery, bot: Bot):
     """Soru silme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.delete_question(callback)
 
-async def show_payments(callback: types.CallbackQuery):
+@router.callback_query(F.data == "admin_payments")
+async def show_payments(callback: types.CallbackQuery, bot: Bot):
     """Ödemeleri gösterme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.show_payments(callback)
 
-async def approve_payment(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("approve_payment_"))
+async def approve_payment(callback: types.CallbackQuery, bot: Bot):
     """Ödeme onaylama handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
-    await handler.approve_payment(callback)
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
+    await handler.approve_payment(callback, bot)
 
-async def reject_payment(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("reject_payment_"))
+async def reject_payment(callback: types.CallbackQuery, bot: Bot):
     """Ödeme reddetme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
-    await handler.reject_payment(callback)
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
+    await handler.reject_payment(callback, bot)
 
-async def approve_receipt(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("approve_receipt_"))
+async def approve_receipt(callback: types.CallbackQuery, bot: Bot):
     """Dekont onaylama handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
-    await handler.approve_receipt(callback)
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
+    await handler.approve_receipt(callback, bot)
 
-async def reject_receipt(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("reject_receipt_"))
+async def reject_receipt(callback: types.CallbackQuery, bot: Bot):
     """Dekont reddetme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
-    await handler.reject_receipt(callback)
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
+    await handler.reject_receipt(callback, bot)
 
-async def show_members(callback: types.CallbackQuery):
+@router.callback_query(F.data == "admin_members")
+async def show_members(callback: types.CallbackQuery, bot: Bot):
     """Üyeleri gösterme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.show_members(callback)
 
-async def remove_member(callback: types.CallbackQuery):
+@router.callback_query(F.data.startswith("remove_member_"))
+async def remove_member(callback: types.CallbackQuery, bot: Bot):
     """Üye çıkarma handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.remove_member(callback)
 
-async def show_stats(callback: types.CallbackQuery):
+@router.callback_query(F.data == "admin_stats")
+async def show_stats(callback: types.CallbackQuery, bot: Bot):
     """İstatistikleri gösterme handler'ı"""
-    handler = AdminHandler(DatabaseService(), GroupService(callback.message.bot))
+    handler = AdminHandler(DatabaseService(), GroupService(bot))
     await handler.show_stats(callback)

@@ -1,19 +1,20 @@
 """
 Telegram Bot Ana Dosyası
 Bu dosya botun giriş noktasıdır.
+aiogram 3.x uyumlu
 """
 
 import asyncio
 import logging
 import json
-from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from config import Config
-from handlers.user_handlers import dp as user_dp
-from handlers.admin_handlers import dp as admin_dp
-from handlers.group_handlers import dp as group_dp
+from handlers.user_handlers import router as user_router
+from handlers.admin_handlers import router as admin_router
+from handlers.group_handlers import router as group_router
 from services.database import DatabaseService
 from services.storage_service import StorageService
 from services.group_service import GroupService
@@ -69,7 +70,7 @@ async def on_startup(bot: Bot):
         logger.info("Konfigürasyon doğrulandı.")
     except ValueError as e:
         logger.error(f"Konfigürasyon hatası: {e}")
-        return
+        return False
     
     # Komutları ayarla
     await set_commands(bot)
@@ -82,7 +83,7 @@ async def on_startup(bot: Bot):
         logger.info(f"Veritabanı bağlantısı başarılı. {len(questions)} soru bulundu.")
     except Exception as e:
         logger.error(f"Veritabanı bağlantı hatası: {e}")
-        return
+        return False
     
     # Storage servisini başlat ve bucket'ı kontrol et
     try:
@@ -91,9 +92,10 @@ async def on_startup(bot: Bot):
         logger.info("Supabase Storage bağlantısı başarılı.")
     except Exception as e:
         logger.error(f"Storage bağlantı hatası: {e}")
-        return
+        return False
     
     logger.info("Bot başarıyla başlatıldı!")
+    return True
 
 async def on_shutdown(bot: Bot):
     """Bot kapatıldığında çalışır"""
@@ -101,31 +103,31 @@ async def on_shutdown(bot: Bot):
 
 async def main():
     """Ana fonksiyon"""
-    # Bot ve dispatcher oluştur
+    # Bot oluştur
     bot = Bot(token=Config.BOT_TOKEN)
     
-    # Storage seçimi (Redis varsa Redis, yoksa Memory)
-    try:
-        from aiogram.contrib.fsm_storage.redis import RedisStorage2
-        storage = RedisStorage2(host='localhost', port=6379, db=0)
-        logger.info("Redis storage kullanılıyor.")
-    except ImportError:
-        storage = MemoryStorage()
-        logger.info("Memory storage kullanılıyor.")
+    # Storage seçimi (Memory kullanıyoruz)
+    storage = MemoryStorage()
+    logger.info("Memory storage kullanılıyor.")
     
-    dp = Dispatcher(bot, storage=storage)
+    # Dispatcher oluştur
+    dp = Dispatcher(storage=storage)
     
-    # Handler'ları ekle
-    user_dp(bot, dp)
-    admin_dp(bot, dp)
-    group_dp(bot, dp)
+    # Router'ları ekle
+    dp.include_router(user_router)
+    dp.include_router(admin_router)
+    dp.include_router(group_router)
     
     # Bot'u başlat
     try:
         # Startup işlemlerini yap
-        await on_startup(bot)
+        success = await on_startup(bot)
+        if not success:
+            logger.error("Bot başlatılamadı!")
+            return
         
-        await dp.start_polling()
+        # Polling başlat
+        await dp.start_polling(bot)
     except KeyboardInterrupt:
         logger.info("Bot durduruldu.")
     except Exception as e:

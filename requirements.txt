@@ -1,14 +1,14 @@
 # Telegram Bot ve Web Uygulaması Bağımlılıkları
-# Python 3.11.7 için optimize edildi - Pre-compiled wheel'lar kullanılıyor
+# Python 3.13 için optimize edildi
 
-# Telegram Bot Framework - Pydantic 1.x kullanan stabil sürüm
-aiogram==2.25.1
+# Telegram Bot Framework - aiogram 3.x (Python 3.13 uyumlu)
+aiogram>=3.0.0
 
 # Environment Variables
 python-dotenv==1.0.0
 
-# Database - Pydantic 1.x ile uyumlu, Rust build gerektirmez
-supabase==1.0.3
+# Database - güncel supabase
+supabase>=2.0.0
 
 # Web Framework - Python 3.11.7 ile uyumlu
 flask==2.3.3
@@ -20,8 +20,8 @@ passlib[bcrypt]==1.7.4
 # Async File Operations - Python 3.11 uyumlu (artık gerekli değil)
 # aiofiles==23.2.1
 
-# Image Processing - Python 3.11.7 uyumlu
-Pillow==9.5.0
+# Image Processing - Python 3.13 uyumlu
+Pillow>=10.0.0
 
 # WSGI Server (Production)
 gunicorn==21.2.0

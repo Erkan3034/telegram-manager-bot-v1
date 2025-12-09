@@ -140,10 +140,11 @@ class GroupService:
             Üye olup olmadığı
         """
         try:
+            from aiogram.enums import ChatMemberStatus
             member = await self.get_chat_member(user_id)
             if member:
-                # Aiogram 2.x'te status string olarak gelir
-                return member.status in ['member', 'administrator', 'creator']
+                # Aiogram 3.x'te status enum olarak gelir
+                return member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]
             return False
         except Exception as e:
             print(f"Kullanıcı üyelik kontrolü hatası: {e}")

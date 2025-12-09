@@ -2,7 +2,7 @@
 
 Bu rehber, Telegram Manager Bot'un Supabase Storage entegrasyonunu kurmak için gerekli adımları açıklar.
 
-## 🚀 Ön Gereksinimler
+##  Ön Gereksinimler
 
 1. **Supabase Projesi**: Aktif bir Supabase projesi
 2. **Supabase URL**: `https://<project-id>.supabase.co` formatında
