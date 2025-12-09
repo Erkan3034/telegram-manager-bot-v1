@@ -331,30 +331,23 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
     
     async def add_receipt(self, callback: types.CallbackQuery, state: FSMContext):
         """Dekont ekleme butonuna tıklandığında"""
-        print(f"DEBUG: add_receipt çağrıldı - User ID: {callback.from_user.id}")
+        # Önce callback'i cevapla (Telegram'ın loading'i kalksın)
+        await callback.answer()
         
+        # State'i HEMEN set et
+        await state.set_state(UserStates.waiting_for_receipt)
+        
+        # Sonra mesajı düzenle
         await callback.message.edit_text(
             "📎 Lütfen ödeme dekontunuzu (PDF, JPG, PNG) gönderin.\n\n"
             "💡 **İpucu:** Dekontunuzu fotoğraf olarak çekip gönderebilirsiniz."
         )
-        
-        print(f"DEBUG: State set ediliyor: waiting_for_receipt")
-        await state.set_state(UserStates.waiting_for_receipt)
-        
-        # State'i kontrol et
-        current_state = await state.get_state()
-        print(f"DEBUG: Current state: {current_state}")
-        
-        await callback.answer()
     
     async def handle_receipt(self, message: types.Message, state: FSMContext, bot: Bot):
         """Dekont dosyasını işler"""
         user_id = message.from_user.id
-        current_state = await state.get_state()
-        print(f"DEBUG: handle_receipt çağrıldı - User ID: {user_id}, Current State: {current_state}")
         
         if not message.document and not message.photo:
-            print(f"DEBUG: Geçersiz dosya türü - Document: {message.document}, Photo: {message.photo}")
             await message.answer("❌ Lütfen geçerli bir dosya gönderin (PDF, JPG, PNG).")
             return
         
@@ -364,22 +357,15 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
                 file = message.document
                 file_name = file.file_name
                 file_id = file.file_id
-                print(f"DEBUG: Document dosyası - Name: {file_name}, ID: {file_id}")
             else:
                 # Fotoğraf
                 photo = message.photo[-1]
                 file_id = photo.file_id
                 file_name = f"receipt_{user_id}_{photo.file_id}.jpg"
-                print(f"DEBUG: Photo dosyası - Name: {file_name}, ID: {file_id}")
             
             # Dosyayı indir
-            print(f"DEBUG: Dosya indiriliyor...")
             file_info = await bot.get_file(file_id)
             file_data = await bot.download_file(file_info.file_path)
-            print(f"DEBUG: Dosya indirildi")
-            
-            # Dosyayı Supabase Storage'a yükle
-            print(f"DEBUG: StorageService.upload_file çağrılıyor...")
             
             # file_data BytesIO object olabilir
             if hasattr(file_data, 'read'):
@@ -387,44 +373,32 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
             else:
                 file_bytes = file_data
             
+            # Dosyayı Supabase Storage'a yükle
             file_url = await self.storage_service.upload_file(
                 file_bytes,
                 file_name,
                 user_id
             )
-            print(f"DEBUG: StorageService.upload_file sonucu: {file_url}")
             
             if file_url:
                 # Dekontu veritabanına kaydet
-                print(f"DEBUG: DatabaseService.save_receipt çağrılıyor...")
-                receipt_result = await self.db.save_receipt(user_id, file_url, file_name)
-                print(f"DEBUG: DatabaseService.save_receipt sonucu: {receipt_result}")
+                await self.db.save_receipt(user_id, file_url, file_name)
                 
-                print(f"DEBUG: Başarı mesajı gönderiliyor...")
                 await message.answer(
                     "✅ Dekontunuz başarıyla yüklendi!\n\n"
                     "📋 Admin onayı bekleniyor. Onaylandıktan sonra gruba davet edileceksiniz."
                 )
-                print(f"DEBUG: Başarı mesajı gönderildi")
                 
                 # Admin'e bildir
-                print(f"DEBUG: Admin bildirimi gönderiliyor...")
                 await self.notify_admin_receipt(user_id, file_name, bot)
-                print(f"DEBUG: Admin bildirimi gönderildi")
                 
                 await state.clear()
-                print(f"DEBUG: State temizlendi")
             else:
-                print(f"DEBUG: StorageService.upload_file None döndü")
                 await message.answer("❌ Dosya yükleme hatası. Lütfen tekrar deneyin.")
                 
         except Exception as e:
-            print(f"DEBUG: Exception yakalandı: {e}")
-            print(f"DEBUG: Exception type: {type(e)}")
-            import traceback
-            traceback.print_exc()
-            
-            await message.answer("Onay bekleniyor.")
+            print(f"Dekont yükleme hatası: {e}")
+            await message.answer("❌ Bir hata oluştu. Lütfen tekrar deneyin.")
     
     async def notify_admin_payment(self, user_id: int, bot: Bot):
         """Admin'e ödeme bildirimi gönderir"""
