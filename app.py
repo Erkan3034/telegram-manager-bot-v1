@@ -3,13 +3,15 @@ Flask Web Uygulaması
 Bu dosya web arayüzü için Flask uygulamasını içerir.
 """
 
-from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session, Response
 from flask_cors import CORS
 import os
 from datetime import datetime
 import asyncio
 from config import Config
 import json
+import csv
+import io
 from services.database import DatabaseService
 from passlib.hash import bcrypt
 
@@ -164,26 +166,6 @@ def api_login():
     session.permanent = True
     return jsonify({'success': True})
 
-@app.route('/api/stats')
-def get_stats():
-    """İstatistikleri getirir"""
-    try:
-        if not session.get('admin_authenticated'):
-            return jsonify({'error':'unauthorized'}), 401
-        db = get_db()
-        total_users = len(run_async(db.get_all_users()))
-        total_payments = len(run_async(db.get_all_payments()))
-        pending_payments = len(run_async(db.get_pending_payments()))
-        total_members = len(run_async(db.get_group_members(Config.GROUP_ID)))
-        
-        return jsonify({
-            'total_users': total_users,
-            'total_payments': total_payments,
-            'pending_payments': pending_payments,
-            'total_members': total_members
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/questions')
 def get_questions():
@@ -301,19 +283,45 @@ def reject_payment(payment_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+async def _add_to_wishlist_async(user_id: int, receipt_id: int):
+    """Async helper for adding user to wishlist"""
+    from services.group_service import GroupService
+    from aiogram import Bot
+    bot = Bot(token=Config.BOT_TOKEN)
+    try:
+        group_service = GroupService(bot)
+        await group_service.add_user_to_wishlist(
+            user_id=user_id,
+            receipt_id=receipt_id
+        )
+    finally:
+        await bot.session.close()
+
 @app.route('/api/receipts/<int:receipt_id>/approve', methods=['POST'])
 def approve_receipt(receipt_id):
-    """Dekontu onaylar ve kullanıcıyı davet eder"""
+    """Dekontu onaylar ve kullanıcıyı gruba ekler (wishlist'ten gelen kullanıcılar için)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
         db = get_db()
+        
         success = run_async(db.update_receipt_status(receipt_id, 'approved'))
         if success:
             receipt = run_async(db.get_receipt(receipt_id))
             if receipt and receipt.get('user_id'):
-                invite_user(receipt['user_id'])
-            return jsonify({'message': 'Dekont onaylandı ve kullanıcıya davet gönderildi'})
+                user_id = receipt['user_id']
+                
+                # Kullanıcının wishlist'te olup olmadığını kontrol et
+                wishlist_entry = run_async(db.get_wishlist_by_user_id(user_id))
+                
+                # Gruba ekle (wishlist'ten gelen kullanıcılar için)
+                invite_user(user_id)
+                
+                # Eğer wishlist'te ise durumunu güncelle
+                if wishlist_entry:
+                    run_async(db.update_wishlist_status(wishlist_entry['id'], 'invited'))
+                
+                return jsonify({'message': 'Dekont onaylandı ve kullanıcıya davet gönderildi'})
         else:
             return jsonify({'error': 'Dekont onaylanamadı'}), 500
     except Exception as e:
@@ -343,6 +351,50 @@ def get_members():
         db = get_db()
         members = run_async(db.get_group_members(Config.GROUP_ID))
         return jsonify(members)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/members/export')
+def export_members():
+    """Grup üyelerini CSV formatında dışa aktarır"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error':'unauthorized'}), 401
+        
+        db = get_db()
+        members = run_async(db.get_group_members(Config.GROUP_ID))
+        
+        # CSV oluştur
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Başlık satırı
+        writer.writerow(['Sıra', 'Kullanıcı ID', 'Kullanıcı Adı', 'Ad', 'Soyad', 'Durum', 'Katılma Tarihi'])
+        
+        # Veri satırları
+        for idx, member in enumerate(members, 1):
+            user = member.get('users', {})
+            writer.writerow([
+                idx,
+                user.get('user_id', ''),
+                user.get('username', ''),
+                user.get('first_name', ''),
+                user.get('last_name', ''),
+                member.get('status', ''),
+                member.get('joined_at', '')[:10] if member.get('joined_at') else ''
+            ])
+        
+        # CSV dosyasını döndür (UTF-8 BOM ile Türkçe karakter desteği için)
+        output.seek(0)
+        csv_content = output.getvalue()
+        # UTF-8 BOM ekle (Excel'de Türkçe karakterler için)
+        csv_bytes = '\ufeff' + csv_content
+        response = Response(
+            csv_bytes.encode('utf-8-sig'),
+            mimetype='text/csv; charset=utf-8',
+            headers={'Content-Disposition': f'attachment; filename=uyeler_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
+        )
+        return response
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -613,6 +665,151 @@ def reorder_messages():
             return jsonify({'error': 'Mesaj sırası güncellenemedi'}), 500
     except Exception as e:
         print(f"Mesaj sırası güncelleme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# Wishlist API'leri
+@app.route('/api/wishlist')
+def get_wishlist():
+    """Bekleme listesindeki kullanıcıları getirir"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        db = get_db()
+        wishlist = run_async(db.get_wishlist())
+        
+        return jsonify(wishlist)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/wishlist/export')
+def export_wishlist():
+    """Bekleme listesini CSV formatında dışa aktarır"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        wishlist = run_async(db.get_wishlist())
+        
+        # CSV oluştur
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Başlık satırı
+        writer.writerow(['Sıra', 'Kullanıcı ID', 'Kullanıcı Adı', 'Ad', 'Soyad', 'Durum', 'Bekleme Süresi (Gün)', 'Eklenme Tarihi'])
+        
+        # Veri satırları
+        for idx, item in enumerate(wishlist, 1):
+            user = item.get('users', {})
+            created_date_str = item.get('created_at', '')
+            wait_days = 0
+            
+            if created_date_str:
+                try:
+                    # ISO formatından datetime'a çevir
+                    if 'T' in created_date_str:
+                        created_date = datetime.fromisoformat(created_date_str.replace('Z', '+00:00'))
+                    else:
+                        created_date = datetime.strptime(created_date_str[:10], '%Y-%m-%d')
+                    now = datetime.now(created_date.tzinfo) if hasattr(created_date, 'tzinfo') and created_date.tzinfo else datetime.now()
+                    wait_days = (now - created_date.replace(tzinfo=None) if hasattr(created_date, 'tzinfo') and created_date.tzinfo else created_date).days
+                except Exception:
+                    wait_days = 0
+            
+            writer.writerow([
+                idx,
+                user.get('user_id', ''),
+                user.get('username', ''),
+                user.get('first_name', ''),
+                user.get('last_name', ''),
+                item.get('status', ''),
+                wait_days,
+                created_date_str[:10] if created_date_str else ''
+            ])
+        
+        # CSV dosyasını döndür (UTF-8 BOM ile Türkçe karakter desteği için)
+        output.seek(0)
+        csv_content = output.getvalue()
+        # UTF-8 BOM ekle (Excel'de Türkçe karakterler için)
+        csv_bytes = '\ufeff' + csv_content
+        response = Response(
+            csv_bytes.encode('utf-8-sig'),
+            mimetype='text/csv; charset=utf-8',
+            headers={'Content-Disposition': f'attachment; filename=bekleme_listesi_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
+        )
+        return response
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+async def _invite_from_wishlist_async(user_id: int):
+    """Async helper for inviting user from wishlist - ödeme linki gönderir"""
+    from services.group_service import GroupService
+    from aiogram import Bot
+    bot = Bot(token=Config.BOT_TOKEN)
+    try:
+        group_service = GroupService(bot)
+        await group_service.invite_from_wishlist(user_id)
+    finally:
+        await bot.session.close()
+
+@app.route('/api/wishlist/<int:wishlist_id>/invite', methods=['POST'])
+def invite_from_wishlist(wishlist_id):
+    """Wishlist'ten kullanıcıyı çıkarır ve ödeme linki gönderir"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error': 'unauthorized'}), 401
+        
+        db = get_db()
+        wishlist_entry = run_async(db.get_wishlist_by_id(wishlist_id))
+        
+        if not wishlist_entry:
+            return jsonify({'error': 'Wishlist kaydı bulunamadı'}), 404
+        
+        user_id = wishlist_entry['user_id']
+        
+        # Wishlist durumunu güncelle (invited olarak işaretle)
+        success = run_async(db.update_wishlist_status(wishlist_id, 'invited'))
+        
+        if success:
+            # Kullanıcıya ödeme linki gönder
+            run_async(_invite_from_wishlist_async(user_id))
+            
+            return jsonify({'message': 'Kullanıcı bekleme listesinden çıkarıldı ve ödeme linki gönderildi'})
+        else:
+            return jsonify({'error': 'Wishlist durumu güncellenemedi'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stats')
+def get_stats():
+    """İstatistikleri getirir"""
+    try:
+        if not session.get('admin_authenticated'):
+            return jsonify({'error':'unauthorized'}), 401
+        db = get_db()
+        total_users = len(run_async(db.get_all_users()))
+        pending_payments = len(run_async(db.get_pending_payments()))
+        total_members = len(run_async(db.get_group_members(Config.GROUP_ID)))
+        approved_receipts = run_async(db.count_approved_receipts())
+        pending_receipts = run_async(db.count_receipts_by_status('pending'))
+        rejected_receipts = run_async(db.count_receipts_by_status('rejected'))
+        wishlist_count = len(run_async(db.get_wishlist()))
+        
+        # Toplam ödeme = Onaylanmış dekontlar (dekont onayı = ödeme onayı)
+        total_payments = approved_receipts
+        
+        return jsonify({
+            'total_users': total_users,
+            'total_payments': total_payments,
+            'pending_payments': pending_payments,
+            'total_members': total_members,
+            'approved_receipts': approved_receipts,
+            'pending_receipts': pending_receipts,
+            'rejected_receipts': rejected_receipts,
+            'wishlist_count': wishlist_count
+        })
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 

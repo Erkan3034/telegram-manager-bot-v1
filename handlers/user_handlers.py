@@ -10,8 +10,9 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import Dict, List
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
+from collections import defaultdict
 
 from config import Config
 from services.database import DatabaseService
@@ -20,6 +21,35 @@ from services.group_service import GroupService
 
 # Router oluştur
 router = Router()
+
+# Rate limiting için in-memory cache (Redis kullanmıyoruz)
+_user_rate_limit = defaultdict(list)  # user_id -> [timestamp1, timestamp2, ...]
+RATE_LIMIT_WINDOW = 60  # 60 saniye
+RATE_LIMIT_MAX_REQUESTS = 5  # 60 saniyede maksimum 5 istek
+
+def check_rate_limit(user_id: int) -> bool:
+    """
+    Kullanıcının rate limit kontrolünü yapar
+    
+    Returns:
+        True: İstek kabul edilebilir
+        False: Rate limit aşıldı
+    """
+    now = datetime.now()
+    
+    # Eski kayıtları temizle
+    _user_rate_limit[user_id] = [
+        ts for ts in _user_rate_limit[user_id]
+        if (now - ts).total_seconds() < RATE_LIMIT_WINDOW
+    ]
+    
+    # Rate limit kontrolü
+    if len(_user_rate_limit[user_id]) >= RATE_LIMIT_MAX_REQUESTS:
+        return False
+    
+    # Yeni isteği kaydet
+    _user_rate_limit[user_id].append(now)
+    return True
 
 # FSM States
 class UserStates(StatesGroup):
@@ -40,6 +70,13 @@ class UserHandler:
         """Kullanıcı /start komutunu işler"""
         user_id = message.from_user.id
         username = message.from_user.username or message.from_user.first_name
+        
+        # Rate limiting kontrolü
+        if not check_rate_limit(user_id):
+            await message.answer(
+                "⏳ Çok fazla istek gönderdiniz. Lütfen birkaç dakika bekleyip tekrar deneyin."
+            )
+            return
         
         # Kullanıcıyı veritabanına kaydet
         user = await self.db.get_user(user_id)
@@ -236,7 +273,27 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             await self.show_payment(message, state)
     
     async def show_payment(self, message: types.Message, state: FSMContext):
-        """Ödeme kısmını gösterir"""
+        """Ödeme kısmını gösterir (300 limit kontrolü ile)"""
+        user_id = message.from_user.id
+        
+        # 300 kişi limiti kontrolü
+        approved_count = await self.db.count_approved_receipts()
+        
+        # Eğer 300'ü geçtiyse bekleme listesine al
+        if approved_count >= 300:
+            # Kullanıcıyı wishlist'e ekle (ödeme yapmadan)
+            await self.group_service.add_user_to_wishlist_early(user_id)
+            
+            # Bekleme listesi mesajı gönder
+            await message.answer(
+                "⏳ Şu an kontenjan dolu olduğu için bekleme listesine alındın.\n\n"
+                "Kontenjan açıldığında sana haber vereceğiz. Lütfen duyuruları takipte kal."
+            )
+            
+            await state.clear()
+            return
+        
+        # Normal akış: Ödeme mesajlarını göster
         # Veritabanından ödeme mesajlarını yükle
         payment_messages = await self.db.get_payment_messages()
         
@@ -347,6 +404,13 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
         """Dekont dosyasını işler"""
         user_id = message.from_user.id
         
+        # Rate limiting kontrolü
+        if not check_rate_limit(user_id):
+            await message.answer(
+                "⏳ Çok fazla istek gönderdiniz. Lütfen birkaç dakika bekleyip tekrar deneyin."
+            )
+            return
+        
         if not message.document and not message.photo:
             await message.answer("❌ Lütfen geçerli bir dosya gönderin (PDF, JPG, PNG).")
             return
@@ -381,6 +445,13 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
             )
             
             if file_url:
+                # Önce kullanıcının ödeme kaydı var mı kontrol et
+                user_payment = await self.db.get_payment_by_user_id(user_id)
+                
+                # Eğer ödeme kaydı yoksa oluştur (dekont yüklendiğinde ödeme yapılmış sayılır)
+                if not user_payment:
+                    await self.db.create_payment(user_id, 99.99)
+                
                 # Dekontu veritabanına kaydet
                 await self.db.save_receipt(user_id, file_url, file_name)
                 

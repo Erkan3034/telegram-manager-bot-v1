@@ -1,2 +1,9 @@
 .env
 DEVELOPMENT_GUIDE.md
+
+
+migrations/
+test_wishlist.py 
+SUPABASE_STORAGE.md 
+WISHLIST_SETUP.md
+TEST_WISHLIST.md

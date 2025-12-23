@@ -16,25 +16,36 @@ class GroupService:
         self.bot = bot
         self.group_id = Config.GROUP_ID
     
-    async def add_user_to_group(self, user_id: int) -> bool:
+    async def add_user_to_group(self, user_id: int, from_wishlist: bool = False) -> bool:
         """
         Kullanıcıyı gruba ekler ve bilgilendirir
         
         Args:
             user_id: Kullanıcı ID'si
+            from_wishlist: Wishlist'ten mi geldiği bilgisi
             
         Returns:
             Başarı durumu
         """
         try:
             # Onay mesajı gönder
-            await self.bot.send_message(
-                chat_id=user_id,
-                text=(
-                    "✅ Ödemeniz/dekontunuz onaylandı!\n\n"
-                    "Şimdi grubumuza katılabilirsiniz. Davet linki birazdan gönderilecek."
+            if from_wishlist:
+                await self.bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        "🎉 Tebrikler!\n\n"
+                        "Bekleme listesinden çıkarıldınız ve artık grubumuza katılabilirsiniz!\n\n"
+                        "Davet linki birazdan gönderilecek."
+                    )
                 )
-            )
+            else:
+                await self.bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        "✅ Ödemeniz/dekontunuz onaylandı!\n\n"
+                        "Şimdi grubumuza katılabilirsiniz. Davet linki birazdan gönderilecek."
+                    )
+                )
 
             # Kullanıcı için tek kullanımlık davet linki oluştur
             invite_link = await self.bot.create_chat_invite_link(
@@ -64,6 +75,92 @@ class GroupService:
             
         except Exception as e:
             print(f"Kullanıcıyı gruba ekleme hatası: {e}")
+            return False
+    
+    async def add_user_to_wishlist_early(self, user_id: int) -> bool:
+        """
+        Kullanıcıyı ödeme yapmadan bekleme listesine ekler (300 limit kontrolü sonrası)
+        
+        Args:
+            user_id: Kullanıcı ID'si
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            from services.database import DatabaseService
+            db = DatabaseService()
+            
+            # Wishlist'e ekle (ödeme ve dekont ID'si yok)
+            wishlist_entry = await db.add_to_wishlist(user_id, None, None)
+            
+            return wishlist_entry is not None
+            
+        except Exception as e:
+            print(f"Kullanıcıyı wishlist'e erken ekleme hatası: {e}")
+            return False
+    
+    async def add_user_to_wishlist(self, user_id: int, payment_id: int = None, receipt_id: int = None) -> bool:
+        """
+        Kullanıcıyı bekleme listesine ekler ve bilgilendirir (eski metod - geriye uyumluluk için)
+        
+        Args:
+            user_id: Kullanıcı ID'si
+            payment_id: Ödeme ID'si (opsiyonel)
+            receipt_id: Dekont ID'si (opsiyonel)
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            from services.database import DatabaseService
+            db = DatabaseService()
+            
+            # Wishlist'e ekle
+            wishlist_entry = await db.add_to_wishlist(user_id, payment_id, receipt_id)
+            
+            return wishlist_entry is not None
+            
+        except Exception as e:
+            print(f"Kullanıcıyı wishlist'e ekleme hatası: {e}")
+            return False
+    
+    async def invite_from_wishlist(self, user_id: int) -> bool:
+        """
+        Bekleme listesindeki kullanıcıya ödeme linki gönderir
+        
+        Args:
+            user_id: Kullanıcı ID'si
+            
+        Returns:
+            Başarı durumu
+        """
+        try:
+            from services.database import DatabaseService
+            db = DatabaseService()
+            
+            # Ödeme linkini al
+            settings = await db.get_bot_settings()
+            payment_url = settings.get('shopier_payment_url') if settings else None
+            
+            if not payment_url:
+                payment_url = "💳 Ödeme linki henüz ayarlanmamış. Lütfen admin ile iletişime geçin."
+            
+            # Kullanıcıya mesaj gönder
+            await self.bot.send_message(
+                chat_id=user_id,
+                text=(
+                    "🎉 Tebrikler!\n\n"
+                    "Kontenjana dahil edilme hakkı kazandın.\n\n"
+                    f"Şimdi aboneliğini aşağıdaki linkten gerçekleştirip, ödeme dekontunu bize atıp onaydan sonra gruba hemen katılabilirsin.\n\n"
+                    f"{payment_url}"
+                )
+            )
+            
+            return True
+            
+        except Exception as e:
+            print(f"Wishlist'ten davet gönderme hatası: {e}")
             return False
     
     async def remove_user_from_group(self, user_id: int) -> bool:
@@ -163,10 +260,35 @@ class GroupService:
         """
         # Yasaklı kelimeler listesi
         banned_words = [
-            'spam', 'reklam', 'satış', 'satis', 'satılık', 'satilik',
-            'kiralık', 'kiralik', 'iş', 'is', 'işçi', 'isci',
-            'yardım', 'yardim', 'bağış', 'bagis', 'bağış', 'bagis'
+            # Reklam / Spam
+            'kampanya', 'indirim', 'kupon', 'promosyon', 'çekiliş', 'hediye',
+            'kazan', 'kazanç', 'para', 'bedava', 'ücretsiz', 'fırsat',
+            'link', 'tıkla', 'hemen', 'dm', 'özelden', 'whatsapp',
+
+            # Dolandırıcılık / Finans
+            'yatırım', 'yatirim', 'borsa', 'kripto', 'coin', 'token',
+            'airdrop', 'forex', 'trading', 'trader', 'binance', 'usdt',
+            'btc', 'eth', 'kazandırır', 'garanti', 'pasif',
+
+            # +18 / Uygunsuz
+            'escort', 'sex', 'seks', 'porno', 'porn', 'nude',
+            'çıplak', 'ciplak', 'onlyfans', 'fetish', 'adult',
+
+            # Yasa dışı / Riskli
+            'hack', 'hacking', 'cracker', 'crack', 'warez',
+            'torrent', 'keygen', 'serial', 'illegal', 'yasadışı',
+            'yasadisi', 'sahte', 'fake', 'klon',
+
+            # Kumar / Bahis
+            'bahis', 'bet', 'casino', 'slot', 'jackpot',
+            'iddaa', 'oran', 'kupon', 'şans', 'sans',
+
+            # Sosyal mühendislik / Scam
+            'çek', 'cek', 'iban', 'papara', 'payfix',
+            'ödeme', 'odeme', 'havale', 'eft', 'cüzdan',
+            'cuzdan', 'adres', 'kod', 'doğrula', 'dogrula'
         ]
+
         
         message_lower = message_text.lower()
         

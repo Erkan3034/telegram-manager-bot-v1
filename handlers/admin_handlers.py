@@ -256,7 +256,7 @@ class AdminHandler:
         await self.show_payments(callback)
     
     async def approve_receipt(self, callback: types.CallbackQuery, bot: Bot):
-        """Dekontu onaylar"""
+        """Dekontu onaylar ve kullanıcıyı gruba ekler"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
             return
@@ -267,12 +267,19 @@ class AdminHandler:
         success = await self.db.update_receipt_status(receipt_id, 'approved')
         
         if success:
-            # Kullanıcıyı gruba ekle
             receipt = await self.db.get_receipt(receipt_id)
             if receipt:
                 user_id = receipt['user_id']
-                # Kullanıcıya onay mesajı ve davet linki gönder (tek kriter dekont onayı)
-                await self.group_service.add_user_to_group(user_id)
+                
+                # Kullanıcının wishlist'te olup olmadığını kontrol et
+                wishlist_entry = await self.db.get_wishlist_by_user_id(user_id)
+                
+                # Gruba ekle (wishlist'ten gelen kullanıcılar için)
+                await self.group_service.add_user_to_group(user_id, from_wishlist=bool(wishlist_entry))
+                
+                # Eğer wishlist'te ise durumunu güncelle
+                if wishlist_entry:
+                    await self.db.update_wishlist_status(wishlist_entry['id'], 'invited')
                 
                 await callback.answer("✅ Dekont onaylandı ve kullanıcı gruba davet edildi.", show_alert=True)
             else:

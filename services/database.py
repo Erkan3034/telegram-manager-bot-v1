@@ -202,6 +202,15 @@ class DatabaseService:
             print(f"Tüm ödemeleri getirme hatası: {e}")
             return []
     
+    async def get_payment_by_user_id(self, user_id: int) -> Optional[Dict]:
+        """Kullanıcının ödeme kaydını getirir"""
+        try:
+            result = self.supabase.table('payments').select('*').eq('user_id', user_id).limit(1).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Kullanıcı ödeme getirme hatası: {e}")
+            return None
+    
     async def update_payment_status(self, payment_id: int, status: str) -> bool:
         """Ödeme durumunu günceller"""
         try:
@@ -613,4 +622,98 @@ class DatabaseService:
             return True
         except Exception as e:
             print(f"Ödeme mesajları güncelleme hatası: {e}")
+            return False
+    
+    # Wishlist işlemleri
+    async def count_approved_receipts(self) -> int:
+        """Onaylanmış dekont sayısını getirir (300 kişi limiti için)"""
+        try:
+            result = self.supabase.table('receipts').select('id', count='exact').eq('status', 'approved').execute()
+            return result.count if hasattr(result, 'count') else len(result.data) if result.data else 0
+        except Exception as e:
+            print(f"Onaylanmış dekont sayısı getirme hatası: {e}")
+            return 0
+    
+    async def count_receipts_by_status(self, status: str) -> int:
+        """Belirli status'ta dekont sayısını getirir"""
+        try:
+            result = self.supabase.table('receipts').select('id', count='exact').eq('status', status).execute()
+            return result.count if hasattr(result, 'count') else len(result.data) if result.data else 0
+        except Exception as e:
+            print(f"Dekont sayısı getirme hatası ({status}): {e}")
+            return 0
+    
+    async def add_to_wishlist(self, user_id: int, payment_id: int = None, receipt_id: int = None) -> Optional[Dict]:
+        """Kullanıcıyı bekleme listesine ekler"""
+        try:
+            # Önce kullanıcının zaten wishlist'te olup olmadığını kontrol et
+            existing = await self.get_wishlist_by_user_id(user_id)
+            if existing:
+                # Zaten wishlist'te, mevcut kaydı döndür
+                return existing
+            
+            wishlist_data = {
+                'user_id': user_id,
+                'payment_id': payment_id,
+                'receipt_id': receipt_id,
+                'status': 'waiting',
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('wishlist').insert(wishlist_data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Wishlist ekleme hatası: {e}")
+            return None
+    
+    async def get_wishlist(self) -> List[Dict]:
+        """Bekleme listesindeki tüm kullanıcıları getirir"""
+        try:
+            result = self.supabase.table('wishlist').select('*, users(*), payments(*), receipts(*)').eq('status', 'waiting').order('created_at', desc=False).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Wishlist getirme hatası: {e}")
+            return []
+    
+    async def get_wishlist_by_user_id(self, user_id: int, status: str = None) -> Optional[Dict]:
+        """Kullanıcının wishlist kaydını getirir"""
+        try:
+            query = self.supabase.table('wishlist').select('*').eq('user_id', user_id)
+            if status:
+                query = query.eq('status', status)
+            else:
+                # Status belirtilmemişse waiting veya invited olanları getir
+                query = query.in_('status', ['waiting', 'invited'])
+            
+            result = query.execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Kullanıcı wishlist getirme hatası: {e}")
+            return None
+    
+    async def get_wishlist_by_id(self, wishlist_id: int) -> Optional[Dict]:
+        """ID'ye göre wishlist kaydını getirir"""
+        try:
+            result = self.supabase.table('wishlist').select('*').eq('id', wishlist_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Wishlist ID getirme hatası: {e}")
+            return None
+    
+    async def update_wishlist_status(self, wishlist_id: int, status: str) -> bool:
+        """Wishlist durumunu günceller (waiting -> invited)"""
+        try:
+            self.supabase.table('wishlist').update({'status': status}).eq('id', wishlist_id).execute()
+            return True
+        except Exception as e:
+            print(f"Wishlist durumu güncelleme hatası: {e}")
+            return False
+    
+    async def remove_from_wishlist(self, wishlist_id: int) -> bool:
+        """Kullanıcıyı wishlist'ten çıkarır"""
+        try:
+            self.supabase.table('wishlist').delete().eq('id', wishlist_id).execute()
+            return True
+        except Exception as e:
+            print(f"Wishlist çıkarma hatası: {e}")
             return False
