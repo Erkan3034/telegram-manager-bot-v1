@@ -1,12 +1,11 @@
 # 🚀 Telegram Manager Bot - Ücretsiz Deployment Rehberi
-
-Bu rehber, Telegram Manager Bot'unu ücretsiz olarak yayına almanızı sağlar.
+---
 
 ## 📋 Gereksinimler
 
 - GitHub hesabı
 - Telegram Bot Token (BotFather'dan)
-- Supabase hesabı (ücretsiz tier)
+- Supabase hesabı 
 
 ## 🎯 Deployment Seçenekleri
 

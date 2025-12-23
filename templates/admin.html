@@ -7,106 +7,704 @@
     <title>Kompass Network Bot Yönetim Paneli</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+            --light-bg: #f8fafc;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--light-bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #1e293b;
+            overflow-x: hidden;
         }
         
+        /* Sidebar Styles */
         .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             min-height: 100vh;
             color: white;
+            position: sticky;
+            top: 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-header h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sidebar-header i {
+            font-size: 1.5rem;
         }
         
         .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin: 5px 0;
-            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.85);
+            padding: 0.875rem 1.25rem;
+            border-radius: 12px;
+            margin: 0.35rem 0.75rem;
+            transition: var(--transition);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: 2px solid transparent;
+        }
+
+        .sidebar .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
         }
         
-        .sidebar .nav-link:hover,
+        .sidebar .nav-link:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
         .sidebar .nav-link.active {
             color: white;
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(4px);
+            border-color: rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
+        /* Main Content */
         .main-content {
-            padding: 30px;
+            padding: 1.5rem;
+            min-height: 100vh;
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                padding: 2rem;
+            }
+        }
+
+        /* Topbar */
+        .topbar {
+            background: white;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar h5 {
+            margin: 0;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .topbar i {
+            color: var(--primary-color);
         }
         
+        /* Cards */
         .card {
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-2px);
         }
         
         .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
-            border-radius: 15px 15px 0 0 !important;
+            border-radius: 0 !important;
             border: none;
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .card-header h5 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Dashboard Stats Cards */
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            border-left: 4px solid transparent;
+            height: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .stat-card.primary { border-left-color: var(--primary-color); }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+        .stat-card.info { border-left-color: var(--info-color); }
+
+        .stat-card .icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card.primary .icon {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            color: var(--primary-color);
+        }
+
+        .stat-card.success .icon {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .stat-card.warning .icon {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        .stat-card.info .icon {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info-color);
+        }
+
+        .stat-card h4 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #1e293b;
+        }
+
+        .stat-card p {
+            color: #64748b;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
         
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 25px;
-        }
-        
-        .btn-success {
-            border-radius: 25px;
-        }
-        
-        .btn-danger {
-            border-radius: 25px;
-        }
-        
-        .table {
+        /* Buttons */
+        .btn {
             border-radius: 10px;
+            padding: 0.625rem 1.25rem;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-outline-secondary {
+            border: 2px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .btn-outline-secondary:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        /* Tables */
+        .table {
+            border-radius: 12px;
             overflow: hidden;
+            margin: 0;
+        }
+
+        .table-responsive {
+            border-radius: 12px;
         }
         
+        .table thead {
+            background: #f8fafc;
+        }
+
         .table th {
-            background: #f8f9fa;
+            background: #f8fafc;
             border: none;
+            padding: 1rem;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
         }
-        /* Settings tabs: force dark text for visibility */
-        
+
+        .table td {
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .table tbody tr {
+            transition: var(--transition);
+        }
+
+        .table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        /* Forms */
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Modals */
+        .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1.5rem;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 1.5rem;
+        }
+
+        /* Settings Tabs */
+        .card-header .nav-tabs {
+            border: none;
+            background: transparent;
+        }
+
         .card-header .nav-tabs .nav-link {
-            color: #111 !important;
-        }
-        
-        .card-header .nav-tabs .nav-link:hover,
-        .card-header .nav-tabs .nav-link:focus {
-            color: #000 !important;
-        }
-        
-        .card-header .nav-tabs .nav-link.active {
-            color: #111 !important;
-            background-color: #fff;
+            color: rgba(255, 255, 255, 0.8) !important;
             border: none;
-            border-top-left-radius: .5rem;
-            border-top-right-radius: .5rem;
+            padding: 0.75rem 1.25rem;
+            margin-right: 0.5rem;
+            border-radius: 10px 10px 0 0;
+            transition: var(--transition);
+        }
+
+        .card-header .nav-tabs .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white !important;
+        }
+
+        .card-header .nav-tabs .nav-link.active {
+            background: white;
+            color: var(--primary-color) !important;
+            font-weight: 600;
+        }
+
+        /* Mobile Menu */
+        .navbar-dark {
+            background: var(--primary-gradient) !important;
+        }
+
+        .offcanvas {
+            background: var(--primary-gradient) !important;
+            width: 280px !important;
+        }
+
+        .offcanvas-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+        }
+
+        .offcanvas-title {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .offcanvas-body {
+            padding: 1rem;
+        }
+
+        .offcanvas-body .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 0.875rem 1.25rem;
+            border-radius: 12px;
+            margin: 0.35rem 0;
+            display: flex;
+            align-items: center;
+            transition: var(--transition);
+            border: 2px solid transparent;
+        }
+
+        .offcanvas-body .nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .offcanvas-body .nav-link:hover,
+        .offcanvas-body .nav-link.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* List Group */
+        .list-group-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px !important;
+            margin-bottom: 0.75rem;
+            padding: 1.25rem;
+            transition: var(--transition);
+        }
+
+        .list-group-item:hover {
+            background: #f8fafc;
+            transform: translateX(4px);
+        }
+
+        /* Loading Spinner */
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3em;
+        }
+
+        /* Toast Container */
+        .toast-container {
+            z-index: 9999;
+        }
+
+        .toast {
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Alert */
+        .alert {
+            border-radius: 12px;
+            border: none;
+        }
+
+        /* Section Headers */
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Responsive Improvements */
+        @media (max-width: 767.98px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .topbar {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start !important;
+            }
+
+            .stat-card {
+                margin-bottom: 1rem;
+                padding: 1.25rem;
+            }
+
+            .stat-card h4 {
+                font-size: 1.5rem;
+            }
+
+            .stat-card .icon {
+                width: 48px;
+                height: 48px;
+                font-size: 1.5rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .table {
+                font-size: 0.875rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .table th {
+                font-size: 0.7rem;
+            }
+
+            .btn-group-vertical {
+                width: 100%;
+            }
+
+            .btn-group-vertical .btn {
+                margin-bottom: 0.25rem;
+            }
+
+            .btn-group-vertical .btn:last-child {
+                margin-bottom: 0;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .list-group-item {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .list-group-item .btn-group {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .list-group-item .btn-group .btn {
+                flex: 1;
+                min-width: calc(50% - 0.25rem);
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+
+            .empty-state i {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* Tablet optimizations */
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .stat-card h4 {
+                font-size: 1.75rem;
+            }
+
+            .btn-group .btn {
+                padding: 0.5rem 0.75rem;
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        /* Smooth Scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Focus Styles */
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible,
+        select:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Animation for page transitions */
+        [id$="-section"] {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .sidebar,
+            .topbar,
+            .btn,
+            .navbar {
+                display: none !important;
+            }
+
+            .main-content {
+                padding: 0;
+            }
         }
     </style>
 </head>
 
 <body>
-    <nav class="navbar navbar-dark bg-dark sticky-top d-md-none">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+    <nav class="navbar navbar-dark sticky-top d-md-none" style="background: var(--primary-gradient); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div class="container-fluid px-3">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#" style="font-weight: 600;">
                 <i class="fab fa-telegram"></i>
-                <span>Kompass Network Bot Yönetim Paneli</span>
+                <span style="font-size: 0.95rem;">Kompass Network</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Menü">
-          <span class="navbar-toggler-icon"></span>
-        </button>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Menü">
+                <span class="navbar-toggler-icon"></span>
+            </button>
         </div>
     </nav>
     <div class="offcanvas offcanvas-end text-bg-dark d-md-none" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
@@ -116,108 +714,162 @@
         </div>
         <div class="offcanvas-body">
             <ul class="navbar-nav">
-                <li class="nav-item"><a class="nav-link active" href="#" onclick="showSection('dashboard')" data-bs-dismiss="offcanvas"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('questions')" data-bs-dismiss="offcanvas"><i class="fas fa-question-circle me-2"></i>Sorular</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('messages')" data-bs-dismiss="offcanvas"><i class="fas fa-comments me-2"></i>Mesaj Yönetimi</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('payments')" data-bs-dismiss="offcanvas"><i class="fas fa-credit-card me-2"></i>Ödemeler</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('members')" data-bs-dismiss="offcanvas"><i class="fas fa-users me-2"></i>Üyeler</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('settings')" data-bs-dismiss="offcanvas"><i class="fas fa-sliders-h me-2"></i>Ayarlar</a></li>
-                <li class="nav-item mt-3"><a class="btn btn-outline-light btn-sm" href="/logout">Çıkış</a></li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="#" onclick="showSection('dashboard')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showSection('questions')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-question-circle me-2"></i>Sorular
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showSection('messages')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-comments me-2"></i>Mesaj Yönetimi
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showSection('payments')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-credit-card me-2"></i>Ödemeler
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showSection('members')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-users me-2"></i>Üyeler
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showSection('settings')" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-cog me-2"></i>Ayarlar
+                    </a>
+                </li>
+                <li class="nav-item mt-4 pt-3 border-top border-white border-opacity-10">
+                    <a class="btn btn-outline-light w-100" href="/logout">
+                        <i class="fas fa-sign-out-alt me-2"></i>Çıkış Yap
+                    </a>
+                </li>
             </ul>
         </div>
     </div>
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar d-none d-md-block">
-                <div class="d-flex flex-column p-3">
-                    <h4 class="text-center mb-4">
-                        <i class="fab fa-telegram"></i> Kompass Network Admin Panel
-                    </h4>
-                    <ul class="nav nav-pills flex-column mb-auto">
+            <div class="col-md-3 col-lg-2 sidebar d-none d-md-block p-0">
+                <div class="d-flex flex-column h-100">
+                    <div class="sidebar-header">
+                        <h4>
+                            <i class="fab fa-telegram"></i>
+                            <span>Admin Panel</span>
+                        </h4>
+                    </div>
+                    <ul class="nav nav-pills flex-column mb-auto px-2">
                         <li class="nav-item">
                             <a href="#" class="nav-link active" onclick="showSection('dashboard')">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>Dashboard</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('questions')">
-                                <i class="fas fa-question-circle"></i> Sorular
+                                <i class="fas fa-question-circle"></i>
+                                <span>Sorular</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('messages')">
-                                <i class="fas fa-comments"></i> Mesaj Yönetimi
+                                <i class="fas fa-comments"></i>
+                                <span>Mesaj Yönetimi</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('payments')">
-                                <i class="fas fa-credit-card"></i> Ödemeler
+                                <i class="fas fa-credit-card"></i>
+                                <span>Ödemeler</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('members')">
-                                <i class="fas fa-users"></i> Üyeler
+                                <i class="fas fa-users"></i>
+                                <span>Üyeler</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link" onclick="showSection('settings')">
-                                <i class="fas fa-sliders-h"></i> Ayarlar
+                                <i class="fas fa-cog"></i>
+                                <span>Ayarlar</span>
                             </a>
                         </li>
                     </ul>
+                    <div class="p-3 border-top border-white border-opacity-10">
+                        <a href="/logout" class="btn btn-outline-light btn-sm w-100">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Çıkış Yap</span>
+                        </a>
+                    </div>
                 </div>
             </div>
 
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10 main-content">
                 <!-- Topbar (Desktop) -->
-                <div class="d-none d-md-block">
-                    <div class="bg-white border rounded-3 px-3 py-2 mb-3 d-flex align-items-center justify-content-between">
-                        <h5 class="m-0 d-flex align-items-center gap-2"><i class="fab fa-telegram text-primary"></i> Kompass Network Admin Panel</h5>
-                        <div class="d-flex align-items-center gap-2">
-                            <a href="/logout" class="btn btn-outline-danger btn-sm"><i class="fas fa-sign-out-alt me-1"></i> Çıkış</a>
-                        </div>
+                <div class="d-none d-md-block topbar">
+                    <h5>
+                        <i class="fab fa-telegram"></i>
+                        <span>Kompass Network Admin Panel</span>
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="/logout" class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Çıkış</span>
+                        </a>
                     </div>
                 </div>
+
                 <!-- Dashboard Section -->
                 <div id="dashboard-section">
-                    <h2 class="mb-4">Dashboard</h2>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="card text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                                    <h4 id="total-users">-</h4>
-                                    <p class="text-muted">Toplam Kullanıcı</p>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">Dashboard</h2>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadStats()">
+                            <i class="fas fa-sync-alt"></i>
+                            <span class="d-none d-md-inline">Yenile</span>
+                        </button>
+                    </div>
+                    <div class="row g-3 g-md-4">
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card primary">
+                                <div class="icon">
+                                    <i class="fas fa-users"></i>
                                 </div>
+                                <h4 id="total-users">-</h4>
+                                <p>Toplam Kullanıcı</p>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-credit-card fa-3x text-success mb-3"></i>
-                                    <h4 id="total-payments">-</h4>
-                                    <p class="text-muted">Toplam Ödeme</p>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card success">
+                                <div class="icon">
+                                    <i class="fas fa-credit-card"></i>
                                 </div>
+                                <h4 id="total-payments">-</h4>
+                                <p>Toplam Ödeme</p>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-clock fa-3x text-warning mb-3"></i>
-                                    <h4 id="pending-payments">-</h4>
-                                    <p class="text-muted">Bekleyen Ödeme</p>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card warning">
+                                <div class="icon">
+                                    <i class="fas fa-clock"></i>
                                 </div>
+                                <h4 id="pending-payments">-</h4>
+                                <p>Bekleyen Ödeme</p>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-user-friends fa-3x text-info mb-3"></i>
-                                    <h4 id="total-members">-</h4>
-                                    <p class="text-muted">Grup Üyesi</p>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card info">
+                                <div class="icon">
+                                    <i class="fas fa-user-friends"></i>
                                 </div>
+                                <h4 id="total-members">-</h4>
+                                <p>Grup Üyesi</p>
                             </div>
                         </div>
                     </div>
@@ -225,10 +877,11 @@
 
                 <!-- Questions Section -->
                 <div id="questions-section" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>Sorular</h2>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+                        <h2 class="mb-0">Sorular</h2>
                         <button class="btn btn-primary" onclick="showAddQuestionModal()">
-                            <i class="fas fa-plus"></i> Yeni Soru Ekle
+                            <i class="fas fa-plus"></i>
+                            <span>Yeni Soru Ekle</span>
                         </button>
                     </div>
                     <div class="card">
@@ -237,10 +890,11 @@
                         </div>
                         <div class="card-body">
                             <div id="questions-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
+                                    <p class="text-muted mt-3">Sorular yükleniyor...</p>
                                 </div>
                             </div>
                         </div>
@@ -249,10 +903,11 @@
 
                 <!-- Messages Management Section -->
                 <div id="messages-section" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>Mesaj Yönetimi</h2>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+                        <h2 class="mb-0">Mesaj Yönetimi</h2>
                         <button class="btn btn-primary" onclick="showAddMessageModal()">
-                            <i class="fas fa-plus"></i> Yeni Mesaj Ekle
+                            <i class="fas fa-plus"></i>
+                            <span>Yeni Mesaj Ekle</span>
                         </button>
                     </div>
 
@@ -264,8 +919,8 @@
                         </div>
                         <div class="card-body">
                             <div id="welcome-messages-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
                                 </div>
@@ -281,8 +936,8 @@
                         </div>
                         <div class="card-body">
                             <div id="question-messages-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
                                 </div>
@@ -302,8 +957,8 @@
                                 <strong>Önemli:</strong> Ödeme mesajlarında <code>{payment_link}</code> placeholder'ını kullanabilirsiniz. Bu placeholder, Bot Ayarları'ndaki "Ödeme URL'si" ile otomatik olarak değiştirilecektir.
                             </div>
                             <div id="payment-messages-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
                                 </div>
@@ -323,8 +978,8 @@
                                 <strong>Bilgi:</strong> SSS mesajları, bot menüsündeki "SSS" butonuna tıklandığında gösterilir.
                             </div>
                             <div id="sss-messages-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
                                 </div>
@@ -335,17 +990,24 @@
 
                 <!-- Payments Section -->
                 <div id="payments-section" style="display: none;">
-                    <h2 class="mb-4">Ödemeler ve Dekontlar</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">Ödemeler ve Dekontlar</h2>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadPayments()">
+                            <i class="fas fa-sync-alt"></i>
+                            <span class="d-none d-md-inline">Yenile</span>
+                        </button>
+                    </div>
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">Bekleyen İşlemler</h5>
                         </div>
                         <div class="card-body">
                             <div id="payments-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
+                                    <p class="text-muted mt-3">Ödemeler yükleniyor...</p>
                                 </div>
                             </div>
                         </div>
@@ -354,10 +1016,12 @@
 
                 <!-- Members Section -->
                 <div id="members-section" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>Grup Üyeleri</h2>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+                        <h2 class="mb-0">Grup Üyeleri</h2>
                         <button class="btn btn-warning" onclick="cleanupDuplicateMembers()">
-                            <i class="fas fa-broom"></i> Aynı Kullanıcıları Temizle
+                            <i class="fas fa-broom"></i>
+                            <span class="d-none d-md-inline">Aynı Kullanıcıları Temizle</span>
+                            <span class="d-md-none">Temizle</span>
                         </button>
                     </div>
                     <div class="card">
@@ -366,10 +1030,11 @@
                         </div>
                         <div class="card-body">
                             <div id="members-list">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Yükleniyor...</span>
                                     </div>
+                                    <p class="text-muted mt-3">Üyeler yükleniyor...</p>
                                 </div>
                             </div>
                         </div>
@@ -703,19 +1368,31 @@
 
                 const questionsList = document.getElementById('questions-list');
                 if (questions.length === 0) {
-                    questionsList.innerHTML = '<p class="text-center text-muted">Henüz soru eklenmemiş.</p>';
+                    questionsList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-question-circle"></i>
+                            <h5>Henüz soru eklenmemiş</h5>
+                            <p class="text-muted">İlk soruyu eklemek için yukarıdaki butona tıklayın.</p>
+                        </div>
+                    `;
                     return;
                 }
 
                 let html = '<div class="table-responsive"><table class="table">';
                 html += '<thead><tr><th>Soru</th><th>İşlemler</th></tr></thead><tbody>';
 
-                questions.forEach(question => {
+                questions.forEach((question, index) => {
                     html += `<tr>
-                        <td>${question.question_text}</td>
                         <td>
-                            <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${question.id})">
-                                <i class="fas fa-trash"></i> Sil
+                            <div class="d-flex align-items-start">
+                                <span class="badge bg-secondary me-2">${index + 1}</span>
+                                <div>${question.question_text}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${question.id})" title="Soruyu sil">
+                                <i class="fas fa-trash"></i>
+                                <span class="d-none d-md-inline ms-1">Sil</span>
                             </button>
                         </td>
                     </tr>`;
@@ -743,7 +1420,13 @@
                 let html = '';
 
                 if (payments.length === 0 && receipts.length === 0) {
-                    html = '<p class="text-center text-muted">Bekleyen ödeme veya dekont bulunmuyor.</p>';
+                    html = `
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <h5>Tüm işlemler tamamlandı</h5>
+                            <p class="text-muted">Bekleyen ödeme veya dekont bulunmuyor.</p>
+                        </div>
+                    `;
                 } else {
                     html = '<div class="table-responsive"><table class="table">';
                     html += '<thead><tr><th>Kullanıcı</th><th>Tür</th><th>Detay</th><th>İşlemler</th></tr></thead><tbody>';
@@ -752,49 +1435,75 @@
                     payments.forEach(payment => {
                         const user = payment.users || {};
                         html += `<tr>
-                            <td>@${user.username || 'Bilinmeyen'}</td>
-                            <td><span class="badge bg-primary">Ödeme</span></td>
-                            <td>${payment.amount} TL</td>
                             <td>
-                                <button class="btn btn-success btn-sm" onclick="approvePayment(${payment.id})">
-                                    <i class="fas fa-check"></i> Onayla
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="rejectPayment(${payment.id})">
-                                    <i class="fas fa-times"></i> Reddet
-                                </button>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <strong>@${user.username || 'Bilinmeyen'}</strong>
+                                        <div class="text-muted small">${user.user_id || ''}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-primary">Ödeme</span></td>
+                            <td><strong>${payment.amount} TL</strong></td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm d-md-inline-flex" role="group">
+                                    <button class="btn btn-success" onclick="approvePayment(${payment.id})" title="Onayla">
+                                        <i class="fas fa-check"></i>
+                                        <span class="d-none d-md-inline ms-1">Onayla</span>
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectPayment(${payment.id})" title="Reddet">
+                                        <i class="fas fa-times"></i>
+                                        <span class="d-none d-md-inline ms-1">Reddet</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>`;
                     });
 
                     // Dekontlar
                     receipts.forEach(receipt => {
-                                const user = receipt.users || {};
-                                html += `<tr>
-                            <td>@${user.username || 'Bilinmeyen'}</td>
+                        const user = receipt.users || {};
+                        html += `<tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <strong>@${user.username || 'Bilinmeyen'}</strong>
+                                        <div class="text-muted small">${user.user_id || ''}</div>
+                                    </div>
+                                </div>
+                            </td>
                             <td><span class="badge bg-info">Dekont</span></td>
                             <td>
                                 ${receipt.file_url && receipt.file_url.startsWith('http') ? 
-                                    `<a href="${receipt.file_url}" target="_blank">${receipt.file_name}</a>` :
+                                    `<a href="${receipt.file_url}" target="_blank" class="text-decoration-none">
+                                        <i class="fas fa-file-alt me-1"></i>${receipt.file_name || 'Dosya'}
+                                    </a>` :
                                     receipt.file_url === 'PENDING_REUPLOAD' ? 
-                                        `<span class="text-warning">📤 Yeniden yüklenmeli</span>` :
-                                        `<span class="text-danger">⚠️ Dosya bulunamadı</span>`
+                                        `<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Yeniden yükle</span>` :
+                                        `<span class="badge bg-danger"><i class="fas fa-times me-1"></i>Dosya yok</span>`
                                 }
                             </td>
                             <td>
-                                ${receipt.file_url && receipt.file_url.startsWith('http') ? 
-                                    `<button class="btn btn-outline-secondary btn-sm" onclick="window.open('${receipt.file_url}', '_blank')">
-                                        <i class="fas fa-eye"></i> Görüntüle
-                                    </button>` :
-                                    `<button class="btn btn-outline-warning btn-sm" disabled>
-                                        <i class="fas fa-exclamation-triangle"></i> Dosya Yok
-                                    </button>`
-                                }
-                                <button class="btn btn-success btn-sm ms-1" onclick="approveReceipt(${receipt.id})">
-                                    <i class="fas fa-check"></i> Onayla
-                                </button>
-                                <button class="btn btn-danger btn-sm ms-1" onclick="rejectReceipt(${receipt.id})">
-                                    <i class="fas fa-times"></i> Reddet
-                                </button>
+                                <div class="btn-group-vertical btn-group-sm d-md-inline-flex" role="group">
+                                    ${receipt.file_url && receipt.file_url.startsWith('http') ? 
+                                        `<button class="btn btn-outline-secondary" onclick="window.open('${receipt.file_url}', '_blank')" title="Görüntüle">
+                                            <i class="fas fa-eye"></i>
+                                            <span class="d-none d-md-inline ms-1">Görüntüle</span>
+                                        </button>` :
+                                        `<button class="btn btn-outline-warning" disabled title="Dosya yok">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span class="d-none d-md-inline ms-1">Dosya Yok</span>
+                                        </button>`
+                                    }
+                                    <button class="btn btn-success" onclick="approveReceipt(${receipt.id})" title="Onayla">
+                                        <i class="fas fa-check"></i>
+                                        <span class="d-none d-md-inline ms-1">Onayla</span>
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectReceipt(${receipt.id})" title="Reddet">
+                                        <i class="fas fa-times"></i>
+                                        <span class="d-none d-md-inline ms-1">Reddet</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>`;
                     });
@@ -816,7 +1525,13 @@
 
                 const membersList = document.getElementById('members-list');
                 if (members.length === 0) {
-                    membersList.innerHTML = '<p class="text-center text-muted">Henüz grup üyesi bulunmuyor.</p>';
+                    membersList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-users"></i>
+                            <h5>Henüz grup üyesi bulunmuyor</h5>
+                            <p class="text-muted">Onaylanan kullanıcılar burada görünecek.</p>
+                        </div>
+                    `;
                     return;
                 }
 
@@ -826,11 +1541,19 @@
                 members.forEach(member => {
                     const user = member.users || {};
                     html += `<tr>
-                        <td>@${user.username || 'Bilinmeyen'}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <strong>@${user.username || 'Bilinmeyen'}</strong>
+                                    <div class="text-muted small">${user.user_id || ''}</div>
+                                </div>
+                            </div>
+                        </td>
                         <td><span class="badge bg-success">Aktif</span></td>
                         <td>
-                            <button class="btn btn-danger btn-sm" onclick="removeMember(${user.user_id})">
-                                <i class="fas fa-user-times"></i> Çıkar
+                            <button class="btn btn-danger btn-sm" onclick="removeMember(${user.user_id})" title="Gruptan çıkar">
+                                <i class="fas fa-user-times"></i>
+                                <span class="d-none d-md-inline ms-1">Çıkar</span>
                             </button>
                         </td>
                     </tr>`;
@@ -1300,7 +2023,12 @@
             const container = document.getElementById(containerId);
 
             if (messages.length === 0) {
-                container.innerHTML = '<p class="text-center text-muted">Bu türde henüz mesaj eklenmemiş.</p>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comment-slash"></i>
+                        <p class="text-muted mb-0">Bu türde henüz mesaj eklenmemiş.</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -1314,28 +2042,31 @@
                 const delayText = message.delay > 0 ? `⏱️ ${message.delay}s` : '⚡ Anında';
 
                 html += `
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" 
+                    <div class="list-group-item list-group-item-action d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" 
                          data-message-id="${message.id}" data-order="${message.order_index}">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">${message.title}</div>
-                            <div class="text-muted small">${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}</div>
-                            <div class="mt-1">
+                        <div class="flex-grow-1 mb-2 mb-md-0">
+                            <div class="fw-bold mb-1">${message.title}</div>
+                            <div class="text-muted small mb-2">${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}</div>
+                            <div class="d-flex flex-wrap gap-2">
                                 <span class="badge bg-primary">Sıra: ${message.order_index}</span>
                                 <span class="badge bg-info">${delayText}</span>
                                 ${statusBadge}
                             </div>
                         </div>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-primary btn-sm" onclick="showEditMessageModal(${message.id})" title="Düzenle">
+                        <div class="btn-group btn-group-sm d-flex d-md-inline-flex" role="group">
+                            <button class="btn btn-outline-primary" onclick="showEditMessageModal(${message.id})" title="Düzenle">
                                 <i class="fas fa-edit"></i>
+                                <span class="d-none d-lg-inline ms-1">Düzenle</span>
                             </button>
-                            <button class="btn btn-outline-${message.is_active ? 'warning' : 'success'} btn-sm" 
+                            <button class="btn btn-outline-${message.is_active ? 'warning' : 'success'}" 
                                     onclick="toggleMessageStatus(${message.id}, ${message.is_active})" 
                                     title="${message.is_active ? 'Deaktif Et' : 'Aktif Et'}">
                                 <i class="fas fa-${message.is_active ? 'pause' : 'play'}"></i>
+                                <span class="d-none d-lg-inline ms-1">${message.is_active ? 'Pasif' : 'Aktif'}</span>
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="deleteMessage(${message.id})" title="Sil">
+                            <button class="btn btn-outline-danger" onclick="deleteMessage(${message.id})" title="Sil">
                                 <i class="fas fa-trash"></i>
+                                <span class="d-none d-lg-inline ms-1">Sil</span>
                             </button>
                         </div>
                     </div>
@@ -1347,16 +2078,20 @@
 
             // Sürükle-bırak sıralama için Sortable.js kullan
             if (typeof Sortable !== 'undefined') {
-                new Sortable(document.getElementById(type + '-sortable'), {
-                    animation: 150,
-                    onEnd: function(evt) {
-                        updateMessageOrder(type, evt.oldIndex, evt.newIndex);
-                    }
-                });
+                const sortableEl = document.getElementById(type + '-sortable');
+                if (sortableEl) {
+                    new Sortable(sortableEl, {
+                        animation: 150,
+                        handle: '.list-group-item',
+                        onEnd: function(evt) {
+                            updateMessageOrder(type, evt.oldIndex, evt.newIndex);
+                        }
+                    });
+                }
             }
         }
 
-        async function updateMessageOrder(type, oldIndex, oldOrder, newIndex, newOrder) {
+        async function updateMessageOrder(type, oldIndex, newIndex) {
             try {
                 const container = document.getElementById(type + '-sortable');
                 const items = Array.from(container.children);
