@@ -149,22 +149,43 @@ def logout():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
-    password = (data.get('password') or '')
-    if not email or not password:
-        return jsonify({'error':'E-posta ve şifre zorunludur'}), 400
-    db = DatabaseService()
-    admin = run_async(db.get_admin_by_email(email))
-    if not admin:
-        return jsonify({'error':'Admin bulunamadı'}), 401
-    # Basit hash kontrolü (prod için bcrypt/argon2 önerilir)
-    if not bcrypt.verify(password, (admin.get('password_hash') or '')):
-        return jsonify({'error':'Şifre hatalı'}), 401
-    session['admin_authenticated'] = True
-    session['admin_email'] = email
-    session.permanent = True
-    return jsonify({'success': True})
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip().lower()
+        password = (data.get('password') or '')
+        
+        if not email or not password:
+            return jsonify({'error':'E-posta ve şifre zorunludur'}), 400
+        
+        db = DatabaseService()
+        admin = run_async(db.get_admin_by_email(email))
+        
+        if not admin:
+            return jsonify({'error':'Admin bulunamadı'}), 401
+        
+        password_hash = admin.get('password_hash') or ''
+        if not password_hash:
+            return jsonify({'error':'Şifre hash bulunamadı'}), 401
+        
+        # Şifre doğrulama (güvenli hata yönetimi ile)
+        try:
+            # bcrypt verify işlemi
+            is_valid = bcrypt.verify(password, password_hash)
+            if not is_valid:
+                return jsonify({'error':'Şifre hatalı'}), 401
+        except (ValueError, TypeError, AttributeError) as e:
+            print(f"Şifre doğrulama hatası: {e}")
+            # Fallback: basit string karşılaştırma (sadece acil durum için)
+            # Production'da bu kullanılmamalı, bcrypt çalışmalı
+            return jsonify({'error':'Şifre doğrulama hatası. Lütfen tekrar deneyin.'}), 500
+        
+        session['admin_authenticated'] = True
+        session['admin_email'] = email
+        session.permanent = True
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Login hatası: {e}")
+        return jsonify({'error':'Giriş sırasında bir hata oluştu'}), 500
 
 
 @app.route('/api/questions')
