@@ -18,6 +18,8 @@ from config import Config
 from services.database import DatabaseService
 from services.storage_service import StorageService
 from services.group_service import GroupService
+from services.cache_service import get_cache
+from services.throttle_service import get_throttle
 
 # Router oluştur
 router = Router()
@@ -78,23 +80,39 @@ class UserHandler:
             )
             return
         
-        # Kullanıcıyı veritabanına kaydet
-        user = await self.db.get_user(user_id)
-        if not user:
-            await self.db.create_user(
-                user_id=user_id,
-                username=username,
-                first_name=message.from_user.first_name,
-                last_name=message.from_user.last_name
-            )
+        # DB write throttling: Çok kısa sürede duplicate user create'i engelle
+        throttle = get_throttle()
+        should_throttle = throttle.should_throttle(user_id, 'create_user')
         
-        # Veritabanından mesajları yükle
-        welcome_messages = await self.db.get_welcome_messages()
+        # Kullanıcıyı veritabanına kaydet (throttle yoksa)
+        if not should_throttle:
+            user = await self.db.get_user(user_id)
+            if not user:
+                user = await self.db.create_user(
+                    user_id=user_id,
+                    username=username,
+                    first_name=message.from_user.first_name,
+                    last_name=message.from_user.last_name
+                )
+                # Write'ı kaydet
+                throttle.record_write(user_id, 'create_user')
+        
+        # Cache'den welcome messages'i al
+        cache = get_cache()
+        welcome_messages = cache.get('welcome_messages')
         
         if not welcome_messages:
-            # Varsayılan mesajları ekle
-            await self._create_default_messages()
+            # Cache miss, DB'den yükle
             welcome_messages = await self.db.get_welcome_messages()
+            
+            if not welcome_messages:
+                # Varsayılan mesajları ekle
+                await self._create_default_messages()
+                welcome_messages = await self.db.get_welcome_messages()
+            
+            # Cache'e kaydet (5 dakika TTL)
+            if welcome_messages:
+                cache.set('welcome_messages', welcome_messages, ttl=300)
         
         # Mesajları sırayla göster
         for i, msg in enumerate(welcome_messages):
@@ -181,13 +199,22 @@ Ama en önemlisi:
     
     async def show_sss(self, callback: types.CallbackQuery, state: FSMContext):
         """SSS mesajını gösterir"""
-        # Veritabanından SSS mesajını yükle
-        sss_messages = await self.db.get_messages_by_type('sss')
+        # Cache'den SSS mesajlarını al
+        cache = get_cache()
+        sss_messages = cache.get('sss_messages')
         
         if not sss_messages:
-            # Varsayılan SSS mesajını ekle
-            await self._create_default_sss_message()
+            # Cache miss, DB'den yükle
             sss_messages = await self.db.get_messages_by_type('sss')
+            
+            if not sss_messages:
+                # Varsayılan SSS mesajını ekle
+                await self._create_default_sss_message()
+                sss_messages = await self.db.get_messages_by_type('sss')
+            
+            # Cache'e kaydet (5 dakika TTL)
+            if sss_messages:
+                cache.set('sss_messages', sss_messages, ttl=300)
         
         if sss_messages:
             # İlk SSS mesajını göster (genellikle tek bir SSS mesajı olur)
@@ -224,13 +251,25 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
     
     async def start_questions_flow(self, callback: types.CallbackQuery, state: FSMContext):
         """Sorulara başlar"""
-        questions = await self.db.get_questions()
+        # Cache'den questions'i al
+        cache = get_cache()
+        questions = cache.get('questions')
         
         if not questions:
-            # Varsayılan soruları ekle
-            for question in Config.DEFAULT_QUESTIONS:
-                await self.db.add_question(question)
+            # Cache miss, DB'den yükle
             questions = await self.db.get_questions()
+            
+            if not questions:
+                # Varsayılan soruları ekle
+                for question in Config.DEFAULT_QUESTIONS:
+                    await self.db.add_question(question)
+                questions = await self.db.get_questions()
+                # Cache'i temizle (yeni sorular eklendi)
+                cache.delete('questions')
+            
+            # Cache'e kaydet (10 dakika TTL - sorular daha az değişir)
+            if questions:
+                cache.set('questions', questions, ttl=600)
         
         # İlk soruyu sor
         if questions:
@@ -256,9 +295,16 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             await message.answer("❌ Beklenmeyen hata oluştu.")
             return
         
-        # Cevabı kaydet
-        question = questions[current_index]
-        await self.db.save_answer(user_id, question['id'], message.text)
+        # DB write throttling: Çok hızlı cevap kaydetmeyi engelle
+        throttle = get_throttle()
+        should_throttle = throttle.should_throttle(user_id, 'save_answer')
+        
+        # Cevabı kaydet (throttle yoksa)
+        if not should_throttle:
+            question = questions[current_index]
+            await self.db.save_answer(user_id, question['id'], message.text)
+            # Write'ı kaydet
+            throttle.record_write(user_id, 'save_answer')
         
         # Sonraki soruya geç
         next_index = current_index + 1
@@ -294,13 +340,22 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             return
         
         # Normal akış: Ödeme mesajlarını göster
-        # Veritabanından ödeme mesajlarını yükle
-        payment_messages = await self.db.get_payment_messages()
+        # Cache'den payment messages'i al
+        cache = get_cache()
+        payment_messages = cache.get('payment_messages')
         
         if not payment_messages:
-            # Varsayılan ödeme mesajlarını ekle
-            await self._create_default_payment_messages()
+            # Cache miss, DB'den yükle
             payment_messages = await self.db.get_payment_messages()
+            
+            if not payment_messages:
+                # Varsayılan ödeme mesajlarını ekle
+                await self._create_default_payment_messages()
+                payment_messages = await self.db.get_payment_messages()
+            
+            # Cache'e kaydet (5 dakika TTL)
+            if payment_messages:
+                cache.set('payment_messages', payment_messages, ttl=300)
         
         # Mesajları sırayla göster
         for i, msg in enumerate(payment_messages):
@@ -411,6 +466,16 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
             )
             return
         
+        # DB write throttling: Çok hızlı dekont yüklemeyi engelle
+        throttle = get_throttle()
+        should_throttle = throttle.should_throttle(user_id, 'save_receipt')
+        
+        if should_throttle:
+            await message.answer(
+                "⏳ Çok kısa süre içinde dekont yüklediniz. Lütfen birkaç saniye bekleyip tekrar deneyin."
+            )
+            return
+        
         if not message.document and not message.photo:
             await message.answer("❌ Lütfen geçerli bir dosya gönderin (PDF, JPG, PNG).")
             return
@@ -450,10 +515,15 @@ Aşağıdaki linkten Kompass Network'e katılabilirsin.
                 
                 # Eğer ödeme kaydı yoksa oluştur (dekont yüklendiğinde ödeme yapılmış sayılır)
                 if not user_payment:
-                    await self.db.create_payment(user_id, 99.99)
+                    # Payment create throttling kontrolü
+                    if not throttle.should_throttle(user_id, 'create_payment'):
+                        await self.db.create_payment(user_id, 99.99)
+                        throttle.record_write(user_id, 'create_payment')
                 
                 # Dekontu veritabanına kaydet
                 await self.db.save_receipt(user_id, file_url, file_name)
+                # Write'ı kaydet
+                throttle.record_write(user_id, 'save_receipt')
                 
                 await message.answer(
                     "✅ Dekontunuz başarıyla yüklendi!\n\n"
@@ -524,8 +594,18 @@ async def start_command(message: types.Message, state: FSMContext, bot: Bot):
 
 @router.message(F.text == "/help")
 async def help_command(message: types.Message):
-    db = DatabaseService()
-    settings = await db.get_bot_settings()
+    # Cache'den bot_settings'i al
+    cache = get_cache()
+    settings = cache.get('bot_settings')
+    
+    if not settings:
+        # Cache miss, DB'den yükle
+        db = DatabaseService()
+        settings = await db.get_bot_settings()
+        # Cache'e kaydet (10 dakika TTL - settings daha az değişir)
+        if settings:
+            cache.set('bot_settings', settings, ttl=600)
+    
     text = settings.get('help_message') if settings else None
     if not text:
         text = "Yardım: /start, /admin, /help"

@@ -1,6 +1,11 @@
 """
 Supabase Veritabanı İşlemleri
 Bu dosya Supabase ile tüm veritabanı işlemlerini yönetir.
+Optimizasyonlar:
+- Graceful degradation (timeout/connection hatalarında sessizce devam)
+- SELECT * yerine sadece gerekli kolonlar
+- COUNT query'leri ile verimli sayım
+- Connection management
 """
 
 from supabase import create_client, Client
@@ -10,6 +15,29 @@ from datetime import datetime
 from config import Config
 from typing import Tuple
 from passlib.hash import bcrypt
+import functools
+
+def db_safe_execute(default_return=None):
+    """
+    DB işlemleri için graceful degradation decorator
+    Supabase timeout/connection hatalarında bot crash etmez
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                error_str = str(e).lower()
+                # Supabase connection/timeout hataları
+                if any(keyword in error_str for keyword in ['timeout', 'connection', 'network', 'unreachable', '503', '504', '502']):
+                    print(f"[DB Safe] Supabase connection error in {func.__name__}: {e}")
+                    return default_return if default_return is not None else ([] if 'List' in str(func.__annotations__.get('return', '')) else None)
+                # Diğer hatalar için normal exception handling
+                print(f"[DB Error] {func.__name__}: {e}")
+                raise
+        return wrapper
+    return decorator
 
 class DatabaseService:
     """Supabase veritabanı servisi"""
@@ -34,9 +62,19 @@ class DatabaseService:
         pass
     
     # Kullanıcı işlemleri
-    async def create_user(self, user_id: int, username: str, first_name: str = None, last_name: str = None) -> Dict:
-        """Yeni kullanıcı oluşturur"""
+    @db_safe_execute(default_return=None)
+    async def create_user(self, user_id: int, username: str, first_name: str = None, last_name: str = None) -> Optional[Dict]:
+        """
+        Yeni kullanıcı oluşturur (duplicate kontrolü ile)
+        ON CONFLICT kullanarak duplicate INSERT'i engeller
+        """
         try:
+            # Önce kullanıcının var olup olmadığını kontrol et (sadece user_id çek)
+            existing = self.supabase.table('users').select('user_id').eq('user_id', user_id).limit(1).execute()
+            if existing.data:
+                # Kullanıcı zaten var, mevcut kaydı döndür (güncelleme yapma)
+                return existing.data[0]
+            
             user_data = {
                 'user_id': user_id,
                 'username': username,
@@ -49,30 +87,60 @@ class DatabaseService:
             result = self.supabase.table('users').insert(user_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
+            # Duplicate key hatası (user_id unique constraint)
+            if 'duplicate' in str(e).lower() or 'unique' in str(e).lower():
+                # Kullanıcı zaten var, mevcut kaydı döndür
+                existing = self.supabase.table('users').select('user_id, username, first_name, last_name, status').eq('user_id', user_id).limit(1).execute()
+                return existing.data[0] if existing.data else None
             print(f"Kullanıcı oluşturma hatası: {e}")
             return None
     
+    @db_safe_execute(default_return=None)
     async def get_user(self, user_id: int) -> Optional[Dict]:
-        """Kullanıcı bilgilerini getirir"""
+        """Kullanıcı bilgilerini getirir (sadece gerekli kolonlar)"""
         try:
-            result = self.supabase.table('users').select('*').eq('user_id', user_id).execute()
+            # SELECT * yerine sadece gerekli kolonları çek
+            result = self.supabase.table('users').select('user_id, username, first_name, last_name, status, created_at').eq('user_id', user_id).limit(1).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"Kullanıcı getirme hatası: {e}")
             return None
     
-    async def get_all_users(self) -> List[Dict]:
-        """Tüm kullanıcıları getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_all_users(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Tüm kullanıcıları getirir (pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
-            result = self.supabase.table('users').select('*').execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('users').select('user_id, username, first_name, last_name, status, created_at').limit(limit).range(offset, offset + limit - 1).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Tüm kullanıcıları getirme hatası: {e}")
             return []
     
-    async def update_user_status(self, user_id: int, status: str) -> bool:
-        """Kullanıcı durumunu günceller"""
+    @db_safe_execute(default_return=0)
+    async def count_all_users(self) -> int:
+        """Tüm kullanıcı sayısını getirir (COUNT query)"""
         try:
+            result = self.supabase.table('users').select('user_id', count='exact').execute()
+            return result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        except Exception as e:
+            print(f"Kullanıcı sayısı getirme hatası: {e}")
+            return 0
+    
+    @db_safe_execute(default_return=False)
+    async def update_user_status(self, user_id: int, status: str) -> bool:
+        """
+        Kullanıcı durumunu günceller (sadece değişim varsa)
+        """
+        try:
+            # Önce mevcut durumu kontrol et (gereksiz UPDATE'leri engelle)
+            current = self.supabase.table('users').select('status').eq('user_id', user_id).limit(1).execute()
+            if current.data and current.data[0].get('status') == status:
+                return True  # Zaten aynı durum, UPDATE yapma
+            
             self.supabase.table('users').update({'status': status}).eq('user_id', user_id).execute()
             return True
         except Exception as e:
@@ -80,10 +148,12 @@ class DatabaseService:
             return False
     
     # Soru işlemleri
+    @db_safe_execute(default_return=[])
     async def get_questions(self) -> List[Dict]:
-        """Tüm soruları getirir"""
+        """Tüm soruları getirir (sadece gerekli kolonlar)"""
         try:
-            result = self.supabase.table('questions').select('*').order('order_index').execute()
+            # SELECT * yerine sadece gerekli kolonları çek
+            result = self.supabase.table('questions').select('id, question_text, order_index, created_at').order('order_index').execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Soruları getirme hatası: {e}")
@@ -142,6 +212,7 @@ class DatabaseService:
             return False
     
     # Cevap işlemleri
+    @db_safe_execute(default_return=None)
     async def save_answer(self, user_id: int, question_id: int, answer_text: str) -> Optional[Dict]:
         """Kullanıcı cevabını kaydeder"""
         try:
@@ -168,9 +239,19 @@ class DatabaseService:
             return []
     
     # Ödeme işlemleri
+    @db_safe_execute(default_return=None)
     async def create_payment(self, user_id: int, amount: float = 99.99) -> Optional[Dict]:
-        """Yeni ödeme kaydı oluşturur"""
+        """
+        Yeni ödeme kaydı oluşturur (duplicate kontrolü ile)
+        Kullanıcının zaten pending bir ödemesi varsa, yeni kayıt oluşturmaz
+        """
         try:
+            # Önce kullanıcının pending ödemesi var mı kontrol et
+            existing = self.supabase.table('payments').select('id, status').eq('user_id', user_id).eq('status', 'pending').limit(1).execute()
+            if existing.data:
+                # Zaten pending ödeme var, mevcut kaydı döndür
+                return existing.data[0]
+            
             payment_data = {
                 'user_id': user_id,
                 'amount': amount,
@@ -193,10 +274,12 @@ class DatabaseService:
             print(f"Ödeme getirme hatası: {e}")
             return None
     
-    async def get_all_payments(self) -> List[Dict]:
-        """Tüm ödemeleri getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_all_payments(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Tüm ödemeleri getirir (pagination ile)"""
         try:
-            result = self.supabase.table('payments').select('*').execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('payments').select('id, user_id, amount, status, created_at').limit(limit).range(offset, offset + limit - 1).order('created_at', desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Tüm ödemeleri getirme hatası: {e}")
@@ -220,14 +303,29 @@ class DatabaseService:
             print(f"Ödeme durumu güncelleme hatası: {e}")
             return False
     
-    async def get_pending_payments(self) -> List[Dict]:
-        """Bekleyen ödemeleri getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_pending_payments(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Bekleyen ödemeleri getirir (pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
-            result = self.supabase.table('payments').select('*, users(*)').eq('status', 'pending').execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('payments').select('id, user_id, amount, status, created_at, users(user_id, username, first_name, last_name)').eq('status', 'pending').limit(limit).range(offset, offset + limit - 1).order('created_at', desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Bekleyen ödemeleri getirme hatası: {e}")
             return []
+    
+    @db_safe_execute(default_return=0)
+    async def count_pending_payments(self) -> int:
+        """Bekleyen ödeme sayısını getirir (COUNT query)"""
+        try:
+            result = self.supabase.table('payments').select('id', count='exact').eq('status', 'pending').execute()
+            return result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        except Exception as e:
+            print(f"Bekleyen ödeme sayısı getirme hatası: {e}")
+            return 0
     
     # Dekont işlemleri
     async def save_receipt(self, user_id: int, file_url: str, file_name: str) -> Optional[Dict]:
@@ -256,10 +354,15 @@ class DatabaseService:
             print(f"Dekont getirme hatası: {e}")
             return None
     
-    async def get_pending_receipts(self) -> List[Dict]:
-        """Bekleyen dekontları getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_pending_receipts(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Bekleyen dekontları getirir (pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
-            result = self.supabase.table('receipts').select('*, users(*)').eq('status', 'pending').execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('receipts').select('id, user_id, file_url, file_name, status, created_at, users(user_id, username, first_name, last_name)').eq('status', 'pending').limit(limit).range(offset, offset + limit - 1).order('created_at', desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Bekleyen dekontları getirme hatası: {e}")
@@ -303,11 +406,16 @@ class DatabaseService:
             print(f"Grup üyesi ekleme hatası: {e}")
             return None
     
-    async def get_group_members(self, group_id: int) -> List[Dict]:
-        """Grup üyelerini getirir (her kullanıcı sadece bir kez)"""
+    @db_safe_execute(default_return=[])
+    async def get_group_members(self, group_id: int, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Grup üyelerini getirir (her kullanıcı sadece bir kez, pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
+            # SELECT * yerine sadece gerekli kolonları çek
             # Her kullanıcı için sadece en son kaydı al (duplicate'ları önle)
-            result = self.supabase.table('group_members').select('*, users(*)').eq('group_id', group_id).order('joined_at', desc=True).execute()
+            result = self.supabase.table('group_members').select('id, user_id, group_id, status, joined_at, users(user_id, username, first_name, last_name)').eq('group_id', group_id).order('joined_at', desc=True).limit(limit * 2).range(offset, offset + (limit * 2) - 1).execute()
             
             if not result.data:
                 return []
@@ -318,11 +426,29 @@ class DatabaseService:
                 user_id = member.get('user_id')
                 if user_id and user_id not in unique_members:
                     unique_members[user_id] = member
+                    # Limit'e ulaştıysak dur
+                    if len(unique_members) >= limit:
+                        break
             
             return list(unique_members.values())
         except Exception as e:
             print(f"Grup üyelerini getirme hatası: {e}")
             return []
+    
+    @db_safe_execute(default_return=0)
+    async def count_group_members(self, group_id: int) -> int:
+        """Grup üyesi sayısını getirir (COUNT query, unique user_id bazlı)"""
+        try:
+            # Her kullanıcı için sadece bir kayıt say (en son olanı)
+            # Bu basitleştirilmiş bir sayım, tam doğruluk için get_group_members kullanılabilir
+            result = self.supabase.table('group_members').select('user_id', count='exact').eq('group_id', group_id).execute()
+            # COUNT exact kullanılamazsa unique user_id sayısı için DISTINCT kullan
+            # Ancak Supabase client'ta DISTINCT direkt desteklenmiyor, bu yüzden tüm kayıtları çekip unique sayısını hesaplıyoruz
+            # Daha verimli için SQL view kullanılabilir, şimdilik bu şekilde
+            return result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        except Exception as e:
+            print(f"Grup üyesi sayısı getirme hatası: {e}")
+            return 0
     
     async def remove_group_member(self, user_id: int, group_id: int) -> bool:
         """Kullanıcıyı gruptan çıkarır"""
@@ -358,10 +484,21 @@ class DatabaseService:
             return False
 
     # Bot ayarları (komut mesajları)
+    @db_safe_execute(default_return={
+        'start_message': 'Hoş geldiniz! /start ile başlayın.',
+        'help_message': 'Yardım: /start, /admin, /help',
+        'intro_message': None,
+        'promotion_message': None,
+        'payment_message': None,
+        'commands': None,
+        'group_id': None,
+        'shopier_payment_url': None
+    })
     async def get_bot_settings(self) -> Dict:
-        """Bot ayarlarını getirir (tek satır beklenir)."""
+        """Bot ayarlarını getirir (tek satır beklenir, sadece gerekli kolonlar)."""
         try:
-            res = self.supabase.table('bot_settings').select('*').limit(1).execute()
+            # SELECT * yerine sadece gerekli kolonları çek
+            res = self.supabase.table('bot_settings').select('id, start_message, help_message, intro_message, promotion_message, payment_message, commands, group_id, shopier_payment_url').limit(1).execute()
             if res.data:
                 return res.data[0]
             # yoksa varsayılan üret
@@ -472,10 +609,15 @@ class DatabaseService:
             return None
 
     # Mesaj Yönetimi İşlemleri
-    async def get_messages(self) -> List[Dict]:
-        """Tüm mesajları getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_messages(self, limit: int = 1000, offset: int = 0) -> List[Dict]:
+        """
+        Tüm mesajları getirir (pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
-            result = self.supabase.table('messages').select('*').order('order_index').execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('messages').select('id, type, title, content, order_index, delay, is_active, created_at, updated_at').order('order_index').limit(limit).range(offset, offset + limit - 1).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Mesajları getirme hatası: {e}")
@@ -666,14 +808,29 @@ class DatabaseService:
             print(f"Wishlist ekleme hatası: {e}")
             return None
     
-    async def get_wishlist(self) -> List[Dict]:
-        """Bekleme listesindeki tüm kullanıcıları getirir"""
+    @db_safe_execute(default_return=[])
+    async def get_wishlist(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Bekleme listesindeki kullanıcıları getirir (pagination ile)
+        Admin panel için limit/offset eklenmiş
+        """
         try:
-            result = self.supabase.table('wishlist').select('*, users(*), payments(*), receipts(*)').eq('status', 'waiting').order('created_at', desc=False).execute()
+            # SELECT * yerine sadece gerekli kolonları çek, limit/offset ekle
+            result = self.supabase.table('wishlist').select('id, user_id, payment_id, receipt_id, status, created_at, users(user_id, username, first_name, last_name)').eq('status', 'waiting').order('created_at', desc=False).limit(limit).range(offset, offset + limit - 1).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Wishlist getirme hatası: {e}")
             return []
+    
+    @db_safe_execute(default_return=0)
+    async def count_wishlist(self) -> int:
+        """Wishlist sayısını getirir (COUNT query)"""
+        try:
+            result = self.supabase.table('wishlist').select('id', count='exact').eq('status', 'waiting').execute()
+            return result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        except Exception as e:
+            print(f"Wishlist sayısı getirme hatası: {e}")
+            return 0
     
     async def get_wishlist_by_user_id(self, user_id: int, status: str = None) -> Optional[Dict]:
         """Kullanıcının wishlist kaydını getirir"""

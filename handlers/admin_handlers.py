@@ -369,16 +369,16 @@ class AdminHandler:
         await self.show_members(callback)
     
     async def show_stats(self, callback: types.CallbackQuery):
-        """İstatistikleri gösterir"""
+        """İstatistikleri gösterir (COUNT query'leri ile optimize edilmiş)"""
         if not self.is_admin(callback.from_user.id):
             await callback.answer("❌ Yetkiniz yok.", show_alert=True)
             return
         
-        # İstatistikleri hesapla
-        total_users = len(await self.db.get_all_users())
-        total_payments = len(await self.db.get_all_payments())
-        pending_payments = len(await self.db.get_pending_payments())
-        total_members = len(await self.db.get_group_members(Config.GROUP_ID))
+        # İstatistikleri hesapla (COUNT query'leri kullan)
+        total_users = await self.db.count_all_users()
+        total_payments = await self.db.count_approved_receipts()  # Onaylanmış dekont sayısı
+        pending_payments = await self.db.count_pending_payments()
+        total_members = await self.db.count_group_members(Config.GROUP_ID)
         
         text = f"""
 📊 **Bot İstatistikleri**

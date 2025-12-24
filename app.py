@@ -190,13 +190,23 @@ def api_login():
 
 @app.route('/api/questions')
 def get_questions():
-    """Soruları getirir"""
+    """Soruları getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
+        
+        # Pagination parametreleri
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 500)
+        limit = min(limit, 500)
+        
         db = get_db()
         questions = run_async(db.get_questions())
-        return jsonify(questions)
+        # get_questions zaten tümünü döndürüyor, client-side pagination
+        # İleride DB-level pagination eklenebilir
+        return jsonify(questions[offset:offset+limit])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -214,6 +224,16 @@ def add_question():
             return jsonify({'error': 'Soru metni gerekli'}), 400
         
         question = run_async(db.add_question(question_text))
+        
+        # Cache invalidation: Soru eklendi, questions cache'ini temizle
+        if question:
+            try:
+                from services.cache_service import get_cache
+                cache = get_cache()
+                cache.delete('questions')
+            except Exception:
+                pass
+        
         return jsonify(question)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -236,6 +256,13 @@ def delete_question(question_id):
         try:
             success = run_async(db.delete_question(question_id))
             if success:
+                # Cache invalidation: Soru silindi, questions cache'ini temizle
+                try:
+                    from services.cache_service import get_cache
+                    cache = get_cache()
+                    cache.delete('questions')
+                except Exception:
+                    pass
                 return jsonify({'message': 'Soru silindi'})
             else:
                 return jsonify({'error': 'Soru silinemedi - veritabanı işlemi başarısız'}), 500
@@ -249,24 +276,40 @@ def delete_question(question_id):
 
 @app.route('/api/payments')
 def get_payments():
-    """Ödemeleri getirir"""
+    """Ödemeleri getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
+        
+        # Pagination parametreleri
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 500)
+        limit = min(limit, 500)
+        
         db = get_db()
-        payments = run_async(db.get_pending_payments())
+        payments = run_async(db.get_pending_payments(limit=limit, offset=offset))
         return jsonify(payments)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/receipts')
 def get_receipts():
-    """Dekontları getirir"""
+    """Dekontları getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
+        
+        # Pagination parametreleri
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 500)
+        limit = min(limit, 500)
+        
         db = get_db()
-        receipts = run_async(db.get_pending_receipts())
+        receipts = run_async(db.get_pending_receipts(limit=limit, offset=offset))
         return jsonify(receipts)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -365,12 +408,20 @@ def reject_receipt(receipt_id):
 
 @app.route('/api/members')
 def get_members():
-    """Grup üyelerini getirir"""
+    """Grup üyelerini getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
+        
+        # Pagination parametreleri
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 500)
+        limit = min(limit, 500)
+        
         db = get_db()
-        members = run_async(db.get_group_members(Config.GROUP_ID))
+        members = run_async(db.get_group_members(Config.GROUP_ID, limit=limit, offset=offset))
         return jsonify(members)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -493,6 +544,16 @@ def bot_settings():
         group_id=data.get('group_id'),
         shopier_payment_url=data.get('shopier_payment_url')
     ))
+    
+    # Cache invalidation: bot_settings güncellendi, cache'i temizle
+    if ok:
+        try:
+            from services.cache_service import get_cache
+            cache = get_cache()
+            cache.delete('bot_settings')
+        except Exception:
+            pass
+    
     # In-memory Config güncellemesi (process çalıştığı sürece etkili olur)
     try:
         if 'group_id' in data and str(data['group_id']).strip():
@@ -535,13 +596,20 @@ def internal_error(error):
 # Mesaj Yönetimi API'leri
 @app.route('/api/messages')
 def get_messages():
-    """Tüm mesajları getirir"""
+    """Tüm mesajları getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error': 'unauthorized'}), 401
         
+        # Pagination parametreleri
+        limit = request.args.get('limit', 1000, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 1000)
+        limit = min(limit, 1000)
+        
         db = get_db()
-        messages = run_async(db.get_messages())
+        messages = run_async(db.get_messages(limit=limit, offset=offset))
         return jsonify(messages)
     except Exception as e:
         print(f"Mesajlar getirilirken hata: {e}")
@@ -572,6 +640,19 @@ def add_message():
         ))
         
         if success:
+            # Cache invalidation: Mesaj eklendi, ilgili cache'leri temizle
+            try:
+                from services.cache_service import get_cache
+                cache = get_cache()
+                msg_type = data.get('type', '')
+                if msg_type == 'welcome':
+                    cache.delete('welcome_messages')
+                elif msg_type == 'payment':
+                    cache.delete('payment_messages')
+                elif msg_type == 'sss':
+                    cache.delete('sss_messages')
+            except Exception:
+                pass
             return jsonify({'message': 'Mesaj başarıyla eklendi'})
         else:
             return jsonify({'error': 'Mesaj eklenemedi'}), 500
@@ -623,6 +704,19 @@ def update_message(message_id):
         ))
         
         if success:
+            # Cache invalidation: Mesaj güncellendi, ilgili cache'leri temizle
+            try:
+                from services.cache_service import get_cache
+                cache = get_cache()
+                msg_type = data.get('type', '')
+                if msg_type == 'welcome':
+                    cache.delete('welcome_messages')
+                elif msg_type == 'payment':
+                    cache.delete('payment_messages')
+                elif msg_type == 'sss':
+                    cache.delete('sss_messages')
+            except Exception:
+                pass
             return jsonify({'message': 'Mesaj başarıyla güncellendi'})
         else:
             return jsonify({'error': 'Mesaj güncellenemedi'}), 500
@@ -638,9 +732,25 @@ def delete_message(message_id):
             return jsonify({'error': 'unauthorized'}), 401
         
         db = get_db()
+        # Önce mesaj tipini al (cache invalidation için)
+        message = run_async(db.get_message(message_id))
+        msg_type = message.get('type') if message else None
+        
         success = run_async(db.delete_message(message_id))
         
         if success:
+            # Cache invalidation: Mesaj silindi, ilgili cache'leri temizle
+            try:
+                from services.cache_service import get_cache
+                cache = get_cache()
+                if msg_type == 'welcome':
+                    cache.delete('welcome_messages')
+                elif msg_type == 'payment':
+                    cache.delete('payment_messages')
+                elif msg_type == 'sss':
+                    cache.delete('sss_messages')
+            except Exception:
+                pass
             return jsonify({'message': 'Mesaj başarıyla silindi'})
         else:
             return jsonify({'error': 'Mesaj silinemedi'}), 500
@@ -691,12 +801,20 @@ def reorder_messages():
 # Wishlist API'leri
 @app.route('/api/wishlist')
 def get_wishlist():
-    """Bekleme listesindeki kullanıcıları getirir"""
+    """Bekleme listesindeki kullanıcıları getirir (pagination ile)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error': 'unauthorized'}), 401
+        
+        # Pagination parametreleri
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Limit maksimum kontrolü (max 500)
+        limit = min(limit, 500)
+        
         db = get_db()
-        wishlist = run_async(db.get_wishlist())
+        wishlist = run_async(db.get_wishlist(limit=limit, offset=offset))
         
         return jsonify(wishlist)
     except Exception as e:
@@ -804,18 +922,21 @@ def invite_from_wishlist(wishlist_id):
 
 @app.route('/api/stats')
 def get_stats():
-    """İstatistikleri getirir"""
+    """İstatistikleri getirir (COUNT query'leri ile optimize edilmiş)"""
     try:
         if not session.get('admin_authenticated'):
             return jsonify({'error':'unauthorized'}), 401
+        
         db = get_db()
-        total_users = len(run_async(db.get_all_users()))
-        pending_payments = len(run_async(db.get_pending_payments()))
-        total_members = len(run_async(db.get_group_members(Config.GROUP_ID)))
+        
+        # COUNT query'leri kullan (SELECT * yerine)
+        total_users = run_async(db.count_all_users())
+        pending_payments = run_async(db.count_pending_payments())
+        total_members = run_async(db.count_group_members(Config.GROUP_ID))
         approved_receipts = run_async(db.count_approved_receipts())
         pending_receipts = run_async(db.count_receipts_by_status('pending'))
         rejected_receipts = run_async(db.count_receipts_by_status('rejected'))
-        wishlist_count = len(run_async(db.get_wishlist()))
+        wishlist_count = run_async(db.count_wishlist())
         
         # Toplam ödeme = Onaylanmış dekontlar (dekont onayı = ödeme onayı)
         total_payments = approved_receipts
