@@ -333,7 +333,8 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             # Bekleme listesi mesajı gönder
             await message.answer(
                 "⏳ Şu an kontenjan dolu olduğu için bekleme listesine alındın.\n\n"
-                "Kontenjan açıldığında sana haber vereceğiz. Lütfen duyuruları takipte kal."
+                "Kontenjan açıldığında sana haber vereceğiz. Grup linkinden bekleme grubuna dahil ol ve Lütfen duyuruları takipte kal.\n\n"
+                "https://t.me/+Su_QOA0-TMY0MWZk"
             )
             
             await state.clear()
