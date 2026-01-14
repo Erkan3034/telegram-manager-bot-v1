@@ -330,7 +330,7 @@ Ek sorularınız için admin ile iletişime geçebilirsiniz.""",
             # Kullanıcıyı wishlist'e ekle (ödeme yapmadan)
             await self.group_service.add_user_to_wishlist_early(user_id)
             
-            # Bekleme listesi mesajı gönder
+            #====================Bekleme listesi mesajı gönder=====================
             await message.answer(
                 "⏳ Şu an kontenjan dolu olduğu için bekleme listesine alındın.\n\n"
                 "Kontenjan açıldığında sana haber vereceğiz. Grup linkinden bekleme grubuna dahil ol ve Lütfen duyuruları takipte kal.\n\n"

@@ -583,15 +583,76 @@ def bot_apply_commands():
 # Artık Supabase Storage kullanıldığı için bu route kaldırıldı
 # Dosyalar doğrudan Supabase Storage'dan erişilebilir
 
+def _render_error_page(status_code: int, title: str, message: str, source: str, detail: str | None = None):
+    """Ortak hata sayfası render fonksiyonu."""
+    from datetime import datetime as _dt
+    # Basit bir request id; ileride gerçek bir request-id middleware'i ile değiştirilebilir
+    request_id = os.environ.get("RENDER_REQUEST_ID") or None
+    return (
+        render_template(
+            "error.html",
+            status_code=status_code,
+            title=title,
+            message=message,
+            source=source,
+            detail=detail,
+            timestamp=_dt.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+            request_id=request_id,
+        ),
+        status_code,
+    )
+
+
 @app.errorhandler(404)
 def not_found(error):
-    """404 hatası"""
-    return jsonify({'error': 'Sayfa bulunamadı'}), 404
+    """404 hatası
+    
+    - /api/* istekleri için: eski davranışı koruyarak JSON döner
+    - Diğer tüm istekler için: görsel hata sayfası döner
+    """
+    path = request.path if request else ""
+    wants_json = path.startswith("/api/") or request.accept_mimetypes.best == "application/json"
+
+    if wants_json:
+        # Mevcut API'lerin beklediği JSON formatını bozma
+        return jsonify({"error": "Sayfa bulunamadı"}), 404
+
+    return _render_error_page(
+        404,
+        "Sayfa bulunamadı",
+        "Aradığınız sayfa bulunamadı veya taşınmış olabilir.",
+        "Uygulama rotası / URL",
+        detail=str(error),
+    )
+
 
 @app.errorhandler(500)
 def internal_error(error):
-    """500 hatası"""
-    return jsonify({'error': 'Sunucu hatası'}), 500
+    """500 hatası
+    
+    - /api/* istekleri için: eski davranışı koruyarak JSON döner
+    - Diğer tüm istekler için: görsel hata sayfası döner
+    """
+    # Detayı logla
+    try:
+        print(f"Internal server error: {error}")
+    except Exception:
+        pass
+
+    path = request.path if request else ""
+    wants_json = path.startswith("/api/") or request.accept_mimetypes.best == "application/json"
+
+    if wants_json:
+        # Önceden tüm API'ler JSON dönüyordu, bu davranışı koruyoruz
+        return jsonify({"error": "Sunucu hatası"}), 500
+
+    return _render_error_page(
+        500,
+        "Sunucu hatası",
+        "Şu anda isteğinizi işlerken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+        "Uygulama içi sunucu hatası",
+        detail=str(error),
+    )
 
 # Mesaj Yönetimi API'leri
 @app.route('/api/messages')
