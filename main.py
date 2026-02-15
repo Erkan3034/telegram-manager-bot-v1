@@ -11,7 +11,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
-from config import Confiğ
+from config import Config
 from handlers.user_handlers import router as user_router
 from handlers.admin_handlers import router as admin_router
 from handlers.group_handlers import router as group_router
